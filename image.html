@@ -1,0 +1,1306 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>圖片編輯器</title>
+<style>
+  :root{font-family:"Instrument Sans","Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;color:#33291f;background:#f7f2e9;--ink:#33291f;--muted:#6c5b4e;--paper:#faf6ee;--panel:#fffaf2;--line:#dfd2c2;--accent:#714b33;--active:#eee2d3;--stage:#e8ded1}
+  *{box-sizing:border-box}body{margin:0}button,input,select,textarea{font:inherit;color:inherit}button{cursor:pointer}button:disabled{cursor:default;opacity:.43}[hidden]{display:none!important}
+  button,select,input:not([type="range"]),textarea{border:1px solid var(--line);border-radius:7px;background:var(--panel);min-height:34px;padding:6px 9px}
+  button:hover:not(:disabled),button[aria-pressed="true"],button[aria-current="true"]{background:var(--active);border-color:#bfa991}
+  button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}button.primary:hover:not(:disabled){background:#563824}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .header{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:.85rem clamp(.75rem,3vw,1.8rem);border-bottom:1px solid var(--line);background:var(--panel)}
+  h1,h2,p{margin:0}h1{font:600 clamp(1.4rem,4vw,1.85rem)/1.2 "Baskervville","Noto Serif TC","Noto Serif CJK TC","Songti TC",PMingLiU,Georgia,serif;letter-spacing:.035em}
+  .header-actions,.buttons,.tabs,.layer-actions{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+  .workspace{display:grid;grid-template-columns:minmax(185px,225px) minmax(0,1fr) minmax(180px,233px);gap:12px;max-width:1680px;margin:auto;padding:14px clamp(8px,2vw,26px)}
+  .sidebar,.main-panel{min-width:0}.panel{border:1px solid var(--line);border-radius:11px;background:var(--panel);overflow:hidden}
+  .panel-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px;border-bottom:1px solid var(--line)}
+  h2{font-size:.93rem}.panel-body{display:grid;gap:11px;padding:12px}.tabs{padding:8px;border-bottom:1px solid var(--line)}.tabs button{flex:1;font-size:.83rem;padding-inline:5px}
+  .control-group{display:grid;gap:8px}.control-group+.control-group{padding-top:10px;border-top:1px solid var(--line)}
+  .field{display:grid;gap:4px;font-size:.85rem}.field select,.field input:not([type="checkbox"]),.field textarea{width:100%;min-width:0}.field small,.hint,.stage-info{color:var(--muted);font-size:.8rem;line-height:1.5}
+  .pair{display:grid;grid-template-columns:1fr 1fr;gap:7px}.range-label,.inline-label{display:flex;align-items:center;justify-content:space-between;gap:6px;font-size:.84rem}.inline-label{justify-content:flex-start}
+  input[type="range"],input[type="checkbox"]{accent-color:var(--accent)}input[type="color"]{padding:3px!important}
+  button.small{font-size:.79rem;padding:5px 7px}.buttons button{flex:1 0 auto}
+  #stage{position:relative;display:grid;place-items:center;min-height:350px;height:min(70vh,760px);padding:16px;overflow:hidden;background:#e9e0d4}
+  .empty{text-align:center;display:grid;justify-items:center;gap:12px;padding:16px}
+  .empty h2{font:600 1.35rem "Noto Serif TC","Songti TC",PMingLiU,Georgia,serif}.empty p{max-width:23rem}
+  #frame{position:relative;box-shadow:0 5px 26px #35291d28;background-color:#fff;background-image:conic-gradient(#e1ded9 25%,transparent 0 50%,#e1ded9 0 75%,transparent 0);background-size:16px 16px}
+  #frame canvas{display:block;width:100%;height:100%}#guide{position:absolute;inset:0;touch-action:none;cursor:default}#guide:focus-visible{outline-offset:4px}
+  #stage[data-drop="true"]{box-shadow:inset 0 0 0 2px var(--accent)}
+  .stage-info{display:flex;justify-content:space-between;gap:7px;flex-wrap:wrap;padding:8px 10px}
+  .crop-bar{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;padding:8px 10px;border-top:1px solid var(--line);background:var(--active)}
+  .crop-bar p{flex:1 1 13rem;font-size:.84rem;line-height:1.5}
+  .crop-bar .buttons{margin-left:auto}
+  .layers{list-style:none;margin:0;padding:7px;display:grid;gap:4px;max-height:19rem;overflow:auto}.layers button,.base-row{width:100%;text-align:left;overflow-wrap:anywhere;font-size:.84rem;min-height:32px}.base-row{padding:7px 8px;color:var(--muted)}
+  .layer-actions{padding:8px;border-top:1px solid var(--line)}.layer-actions button{flex:1;min-width:0}
+  #selection-fields{border-top:1px solid var(--line)}
+  dialog{width:min(410px,calc(100% - 24px));border:1px solid var(--line);border-radius:11px;background:var(--paper);color:var(--ink);padding:16px}
+  dialog::backdrop{background:#33251d70}.dialog-form{display:grid;gap:12px}.dialog-footer{display:flex;gap:7px;justify-content:flex-end;flex-wrap:wrap}
+  #export-error{color:#9d3e29;font-size:.83rem}
+  @media(max-width:950px){.workspace{grid-template-columns:183px minmax(0,1fr)}.layers-panel{grid-column:2}.main-panel{grid-column:2;grid-row:1}.sidebar{grid-column:1;grid-row:1/span 2}#stage{height:min(60vh,620px)}}
+  @media(max-width:650px){.workspace{grid-template-columns:minmax(0,1fr);gap:9px}.sidebar,.main-panel,.layers-panel{grid-column:auto;grid-row:auto}.main-panel{order:-1}#stage{min-height:255px;height:42vh}.header{padding:.7rem .6rem}.header-actions button{font-size:.84rem}.panel-body{gap:9px}}
+</style>
+</head>
+<body>
+<header class="header">
+  <h1>圖片編輯器</h1>
+  <div class="header-actions">
+    <button type="button" id="open">開啟圖片</button>
+    <button type="button" id="insert" disabled>插入圖片</button>
+    <button type="button" id="undo" title="復原（Ctrl+Z）" disabled>復原</button>
+    <button type="button" id="redo" title="重做（Ctrl+Shift+Z）" disabled>重做</button>
+    <button type="button" id="save-html" title="另存可繼續編輯的 HTML（Ctrl+S）">另存 HTML</button>
+    <button type="button" id="export" class="primary" disabled>下載圖片</button>
+    <input id="base-file" type="file" accept="image/*" hidden>
+    <input id="layer-file" type="file" accept="image/*" multiple hidden>
+  </div>
+</header>
+<main class="workspace">
+  <aside class="sidebar panel" aria-label="圖片工具">
+    <div class="tabs" aria-label="工具分類">
+      <button type="button" data-panel="edit" aria-controls="edit-tools" aria-pressed="true">尺寸</button>
+      <button type="button" data-panel="adjust" aria-controls="adjust-tools" aria-pressed="false">調色</button>
+      <button type="button" data-panel="draw" aria-controls="draw-tools" aria-pressed="false">標註</button>
+    </div>
+    <section id="edit-tools" class="panel-body">
+      <div class="control-group">
+        <div class="buttons">
+          <button type="button" data-mode="select" aria-pressed="true">選取</button>
+          <button type="button" data-mode="crop" aria-pressed="false" disabled>開始裁切</button>
+        </div>
+        <label class="field">裁切比例
+          <select id="crop-ratio"><option value="">自由</option><option value="1">1:1</option><option value="1.3333333333333333">4:3</option><option value="1.5">3:2</option><option value="1.7777777777777777">16:9</option><option value="0.5625">9:16</option></select>
+        </label>
+      </div>
+      <div class="control-group">
+        <div class="buttons">
+          <button type="button" class="small" data-transform="left">左轉 90°</button>
+          <button type="button" class="small" data-transform="right">右轉 90°</button>
+          <button type="button" class="small" data-transform="horizontal">左右翻轉</button>
+          <button type="button" class="small" data-transform="vertical">上下翻轉</button>
+        </div>
+      </div>
+      <form class="control-group" id="resize-form">
+        <div class="pair">
+          <label class="field">寬度 px<input id="resize-w" type="number" min="1" step="1" required></label>
+          <label class="field">高度 px<input id="resize-h" type="number" min="1" step="1" required></label>
+        </div>
+        <label class="inline-label"><input id="resize-lock" type="checkbox" checked> 鎖定比例</label>
+        <button type="submit" id="apply-resize">套用尺寸</button>
+      </form>
+    </section>
+    <section id="adjust-tools" class="panel-body" hidden>
+      <div class="control-group">
+        <h2>快速色調</h2>
+        <div class="pair">
+          <button type="button" class="small" data-look="lomo" aria-pressed="false">LOMO</button>
+          <button type="button" class="small" data-look="warmFilm" aria-pressed="false">暖色底片</button>
+          <button type="button" class="small" data-look="cool" aria-pressed="false">冷色清透</button>
+          <button type="button" class="small" data-look="monochrome" aria-pressed="false">高反差黑白</button>
+        </div>
+        <button type="button" class="small" id="auto-balance" aria-pressed="false">自動白平衡</button>
+      </div>
+      <label class="field"><span class="range-label">亮度 <output id="value-brightness">0</output></span><input type="range" min="-100" max="100" value="0" data-adjust="brightness"></label>
+      <label class="field"><span class="range-label">對比 <output id="value-contrast">0</output></span><input type="range" min="-100" max="100" value="0" data-adjust="contrast"></label>
+      <label class="field"><span class="range-label">飽和度 <output id="value-saturation">0</output></span><input type="range" min="-100" max="100" value="0" data-adjust="saturation"></label>
+      <label class="field"><span class="range-label">色溫 <output id="value-warmth">0</output></span><input type="range" min="-100" max="100" value="0" data-adjust="warmth"></label>
+      <label class="field"><span class="range-label">暗角 <output id="value-vignette">0</output></span><input type="range" min="0" max="100" value="0" data-adjust="vignette"></label>
+      <label class="field"><span class="range-label">銳利度 <output id="value-sharpness">0</output></span><input type="range" min="0" max="100" value="0" data-adjust="sharpness"></label>
+      <label class="inline-label"><input type="checkbox" id="grayscale"> 黑白</label>
+      <div class="buttons">
+        <button type="button" class="small" id="clear-adjust">重設調色</button>
+        <button type="button" class="small" id="original" aria-pressed="false">查看原圖</button>
+      </div>
+      <button type="button" class="small" id="reset-photo">回到原圖</button>
+    </section>
+    <section id="draw-tools" class="panel-body" hidden>
+      <div class="buttons">
+        <button type="button" class="small" data-mode="text">文字</button>
+        <button type="button" class="small" data-mode="arrow">箭頭</button>
+        <button type="button" class="small" data-mode="rect">框線</button>
+        <button type="button" class="small" data-mode="mosaic">馬賽克</button>
+        <button type="button" class="small" data-mode="blur">模糊</button>
+      </div>
+      <label class="field">標註顏色<input id="mark-color" type="color" value="#dc4c32"></label>
+      <label class="field">線條粗細 px<input id="mark-line" type="number" min="1" max="300" value="6"></label>
+      <p class="hint">文字點一下放置。框線、箭頭和遮蔽工具以拖曳設定範圍。</p>
+    </section>
+  </aside>
+  <div class="main-panel panel">
+    <div id="stage">
+      <div class="empty" id="empty">
+        <h2>開啟一張圖片</h2>
+        <p class="hint">拖曳檔案到這裡，或貼上剪貼簿的圖片。</p>
+        <button type="button" id="pick-empty" class="primary">選擇圖片</button>
+      </div>
+      <div id="frame" hidden>
+        <canvas id="preview" aria-label="圖片預覽"></canvas>
+        <canvas id="guide" tabindex="0" aria-label="編輯畫布"></canvas>
+      </div>
+    </div>
+    <div id="crop-bar" class="crop-bar" aria-label="裁切控制" hidden>
+      <p id="crop-info">在圖片上拖曳，圈出要保留的範圍。</p>
+      <div class="buttons">
+        <button type="button" id="cancel-crop">取消</button>
+        <button type="button" id="apply-crop" class="primary" disabled>套用裁切</button>
+      </div>
+    </div>
+    <div class="stage-info"><span id="stage-status" role="status">開啟底圖後，可插入其他圖片。</span><span id="dimensions"></span></div>
+  </div>
+  <aside class="layers-panel panel" aria-label="圖層">
+    <div class="panel-head"><h2>圖層</h2><button type="button" class="small" id="add-layer" disabled>插入圖片</button></div>
+    <ol class="layers" id="layers"></ol>
+    <div class="layer-actions">
+      <button type="button" class="small" id="layer-up" disabled>上移</button>
+      <button type="button" class="small" id="layer-down" disabled>下移</button>
+      <button type="button" class="small" id="layer-delete" disabled>刪除</button>
+    </div>
+    <section class="panel-body" id="selection-fields" hidden>
+      <div class="control-group">
+        <label class="field">角度（°）<input id="layer-angle" type="number" step="0.1" value="0"></label>
+        <input id="layer-angle-slider" type="range" min="-180" max="180" step="0.1" value="0" aria-label="圖層角度">
+        <div class="buttons">
+          <button type="button" class="small" id="layer-rotate-left">左轉 90°</button>
+          <button type="button" class="small" id="layer-rotate-right">右轉 90°</button>
+        </div>
+      </div>
+      <div id="image-fields" class="control-group" hidden>
+        <label class="field"><span class="range-label">不透明度 <output id="opacity-value">100%</output></span><input id="layer-opacity" type="range" min="0" max="100" value="100"></label>
+      </div>
+      <div id="text-fields" class="control-group" hidden>
+        <label class="field">文字<textarea id="layer-text" rows="3"></textarea></label>
+        <div class="pair">
+          <label class="field">字級 px<input id="layer-size" type="number" min="6" max="1000"></label>
+          <label class="field">顏色<input id="layer-color" type="color"></label>
+        </div>
+      </div>
+      <label id="effect-field" class="field" hidden><span id="effect-label">程度</span><input id="effect-value" type="range" min="2" max="100"></label>
+      <p class="hint">拖曳圖層可移動，拖曳右下角可等比例縮放。</p>
+    </section>
+  </aside>
+</main>
+<dialog id="export-dialog">
+  <form class="dialog-form" id="export-form">
+    <h2>下載圖片</h2>
+    <label class="field">檔名<input id="export-name" maxlength="100" required></label>
+    <label class="field">格式<select id="export-type"><option value="image/png">PNG</option><option value="image/jpeg">JPG</option><option value="image/webp">WebP</option></select></label>
+    <label class="field" id="quality-field" hidden><span class="range-label">品質 <output id="quality-value">92%</output></span><input id="export-quality" type="range" min="10" max="100" value="92"></label>
+    <p class="hint" id="export-dimensions"></p>
+    <p id="export-error" role="alert" hidden></p>
+    <div class="dialog-footer"><button type="button" id="close-export">取消</button><button type="submit" id="download" class="primary">下載</button></div>
+  </form>
+</dialog>
+<script id="editor-project" type="application/json">null</script>
+<script>
+(() => {
+"use strict";
+/*
+維護入口
+- project 是可複製的資料，圖片原始像素集中在 assets，歷史紀錄只保存參照。
+- base 與 layer.matrix 使用 Canvas 2D 仿射矩陣。裁切和變形作用於完整構圖。
+- 圖層角度由 matrix 推導，旋轉以物件中心為基準。預覽、復原與另存只需要同一份矩陣資料。
+- renderer.paint 供預覽及匯出共用。guide 畫布只顯示選取框、裁切框及繪製中的標示。
+- looks 只覆寫色調控制。白平衡係數與銳利度獨立保存，效果只處理底圖像素。
+- layer.kind 決定影像、文字、標註或遮蔽的呈現。layers 由下往上排序，底圖獨立保存。
+- 另存 HTML 以啟動時的介面作外殼，將目前 project 與引用的原始圖片寫入 editor-project JSON，開啟時由 restoreEditor 還原。
+*/
+const $ = id => document.getElementById(id);
+const projectSlot = $("editor-project");
+function captureEditor() {
+  const root = document.documentElement.cloneNode(true);
+  const slot = root.querySelector("#editor-project");
+  slot.textContent = "";
+  const markup = root.outerHTML, tag = slot.outerHTML;
+  const start = markup.indexOf(tag);
+  if (start<0) throw new Error("找不到 HTML 的專案資料區。");
+  const position = start+tag.indexOf(">")+1;
+  return ["<!doctype html>\n"+markup.slice(0,position),markup.slice(position)];
+}
+const editorShell = captureEditor();
+const all = selector => Array.from(document.querySelectorAll(selector));
+const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+const positiveInt = value => Number.isSafeInteger(value) && value > 0;
+const identity = () => [1, 0, 0, 1, 0, 0];
+const translate = (x, y) => [1, 0, 0, 1, x, y];
+const scale = (x, y) => [x, 0, 0, y, 0, 0];
+const apply = ([a,b,c,d,e,f], {x,y}) => ({x:a*x+c*y+e, y:b*x+d*y+f});
+function multiply([a,b,c,d,e,f], [g,h,i,j,k,l]) {
+  return [a*g+c*h,b*g+d*h,a*i+c*j,b*i+d*j,a*k+c*l+e,b*k+d*l+f];
+}
+function inverse([a,b,c,d,e,f]) {
+  const determinant = a*d-b*c;
+  return [d/determinant,-b/determinant,-c/determinant,a/determinant,(c*f-d*e)/determinant,(b*e-a*f)/determinant];
+}
+function corners(layer) {
+  const {w,h,matrix} = layer;
+  return [[0,0],[w,0],[w,h],[0,h]].map(([x,y]) => apply(matrix,{x,y}));
+}
+function bounds(points) {
+  const horizontal = points.map(point => point.x), vertical = points.map(point => point.y);
+  return [Math.min(...horizontal),Math.min(...vertical),Math.max(...horizontal),Math.max(...vertical)];
+}
+function dragBox(start,end) {
+  return {x:Math.min(start.x,end.x),y:Math.min(start.y,end.y),w:Math.abs(end.x-start.x),h:Math.abs(end.y-start.y)};
+}
+function cropBox(start,end,ratio,canvasSize) {
+  if (!ratio) return dragBox(start,end);
+  const dx = end.x-start.x, dy = end.y-start.y;
+  const directionX = dx===0 ? (start.x<=canvasSize.w/2 ? 1 : -1) : Math.sign(dx);
+  const directionY = dy===0 ? (start.y<=canvasSize.h/2 ? 1 : -1) : Math.sign(dy);
+  const availableW = directionX>0 ? canvasSize.w-start.x : start.x;
+  const availableH = directionY>0 ? canvasSize.h-start.y : start.y;
+  const w = Math.min(Math.max(Math.abs(dx),Math.abs(dy)*ratio),availableW,availableH*ratio);
+  const h = w/ratio;
+  return {x:directionX>0 ? start.x : start.x-w,y:directionY>0 ? start.y : start.y-h,w,h};
+}
+const neutral = () => ({brightness:0,contrast:0,saturation:0,warmth:0,grayscale:false,vignette:0,sharpness:0,whiteBalance:null});
+const looks = {
+  lomo: {brightness:-7,contrast:24,saturation:26,warmth:6,vignette:46,grayscale:false},
+  warmFilm: {brightness:4,contrast:8,saturation:-12,warmth:27,vignette:11,grayscale:false},
+  cool: {brightness:6,contrast:9,saturation:2,warmth:-22,vignette:0,grayscale:false},
+  monochrome: {brightness:0,contrast:25,saturation:0,warmth:0,vignette:0,grayscale:true},
+};
+function newProject(asset) {
+  return {source:asset.id, w:asset.w, h:asset.h, base:identity(), adjust:neutral(), layers:[]};
+}
+function transform(project,matrix,w,h) {
+  return {...project,w,h,base:multiply(matrix,project.base),
+    layers:project.layers.map(layer => ({...layer,matrix:multiply(matrix,layer.matrix)}))};
+}
+function canvasTransform(project,action) {
+  switch (action) {
+    case "left": return transform(project,[0,-1,1,0,0,project.w],project.h,project.w);
+    case "right": return transform(project,[0,1,-1,0,project.h,0],project.h,project.w);
+    case "horizontal": return transform(project,[-1,0,0,1,project.w,0],project.w,project.h);
+    case "vertical": return transform(project,[1,0,0,-1,0,project.h],project.w,project.h);
+    default: return project;
+  }
+}
+function cropPixels(project,rect) {
+  const x = clamp(Math.round(rect.x),0,project.w-1), y = clamp(Math.round(rect.y),0,project.h-1);
+  const right = clamp(Math.round(rect.x+rect.w),x+1,project.w);
+  const bottom = clamp(Math.round(rect.y+rect.h),y+1,project.h);
+  return {x,y,w:right-x,h:bottom-y};
+}
+function cropProject(project,rect) {
+  const {x,y,w,h} = cropPixels(project,rect);
+  return transform(project,translate(-x,-y),w,h);
+}
+function imageLayer(asset,project,id) {
+  const factor = Math.min(1,project.w*.55/asset.w,project.h*.55/asset.h);
+  const w = asset.w*factor, h = asset.h*factor;
+  return {id,kind:"image",asset:asset.id,w,h,opacity:1,matrix:translate((project.w-w)/2,(project.h-h)/2)};
+}
+const wrapAngle = degrees => ((degrees%360+540)%360)-180;
+const layerAngle = layer => Math.atan2(layer.matrix[1],layer.matrix[0])*180/Math.PI;
+function visibleAngle(layer) {
+  const rounded = Math.round(wrapAngle(layerAngle(layer))*10)/10;
+  return rounded===180 ? -180 : rounded || 0;
+}
+function rotateLayer(layer,degrees) {
+  const delta = wrapAngle(wrapAngle(degrees)-layerAngle(layer));
+  if (Math.abs(delta)<1e-8) return layer;
+  const radians = delta*Math.PI/180, c = Math.cos(radians), s = Math.sin(radians);
+  const {x,y} = apply(layer.matrix,{x:layer.w/2,y:layer.h/2});
+  const aroundCenter = multiply(translate(x,y),multiply([c,s,-s,c,0,0],translate(-x,-y)));
+  return {...layer,matrix:multiply(aroundCenter,layer.matrix)};
+}
+function scaleLayer(layer,point) {
+  const local = apply(inverse(layer.matrix),point);
+  const factor = Math.max(.015,(local.x*layer.w+local.y*layer.h)/(layer.w**2+layer.h**2));
+  return {...layer,matrix:multiply(layer.matrix,scale(factor,factor))};
+}
+function reorderLayer(list,index,delta) {
+  const other = index+delta;
+  if (index<0 || other<0 || other>=list.length) return list;
+  const result = list.slice();
+  [result[index],result[other]] = [result[other],result[index]];
+  return result;
+}
+
+const assets = new Map();
+const measure = document.createElement("canvas").getContext("2d");
+const textFont = size => '700 '+size+'px "Microsoft JhengHei","PingFang TC",system-ui,sans-serif';
+function measureTextLayer(layer) {
+  measure.font = textFont(layer.size);
+  const lines = layer.text.split("\n");
+  const w = Math.max(layer.size,...lines.map(line => measure.measureText(line).width))+4;
+  return {...layer,w,h:layer.size*1.2*lines.length+4};
+}
+function makeCanvas(w,h) {
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  if (canvas.width!==w || canvas.height!==h) throw new Error("此尺寸超出瀏覽器的畫布範圍。");
+  return canvas;
+}
+function context(canvas) {
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("無法建立畫布，請縮小圖片後重試。");
+  return ctx;
+}
+function estimateBalance(data) {
+  let red = 0, green = 0, blue = 0, weightTotal = 0;
+  for (let i=0;i<data.length;i+=4) {
+    const r = data[i], g = data[i+1], b = data[i+2];
+    const high = Math.max(r,g,b), low = Math.min(r,g,b);
+    if (data[i+3]<128 || low<15 || high>245 || (high-low)/high>.42) continue;
+    const weight = (1-(high-low)/high)**2 * data[i+3]/255;
+    red += r*weight; green += g*weight; blue += b*weight; weightTotal += weight;
+  }
+  if (!weightTotal || weightTotal<Math.min(8,data.length/4*.01)) return null;
+  const target = (red+green+blue)/3;
+  return [red,green,blue].map(channel => clamp(target/channel,.76,1.32));
+}
+function sharpenPixels(pixels,w,h,amount) {
+  if (!amount || w<3 || h<3) return;
+  const source = new Uint8ClampedArray(pixels), stride = w*4, strength = amount*.016;
+  for (let y=1;y<h-1;y++) {
+    for (let i=y*stride+4,end=(y+1)*stride-4;i<end;i+=4) {
+      if (!source[i+3]) continue;
+      const left = i-4, right = i+4, above = i-stride, below = i+stride;
+      const wl = source[left+3]/255, wr = source[right+3]/255;
+      const wa = source[above+3]/255, wb = source[below+3]/255;
+      const divisor = 4+wl+wr+wa+wb;
+      for (let channel=0;channel<3;channel++) {
+        const center = source[i+channel];
+        const blurred = (center*4+source[left+channel]*wl+source[right+channel]*wr+
+          source[above+channel]*wa+source[below+channel]*wb)/divisor;
+        pixels[i+channel] = center+strength*(center-blurred);
+      }
+    }
+  }
+}
+function colorAdjust(ctx,w,h,settings) {
+  const {brightness,contrast,saturation,warmth,grayscale,vignette,sharpness,whiteBalance} = settings;
+  const colorChange = brightness || contrast || saturation || warmth || grayscale || vignette || whiteBalance;
+  if (!colorChange && !sharpness) return;
+  const frame = ctx.getImageData(0,0,w,h);
+  const pixels = frame.data;
+  if (colorChange) {
+    const c = 1+contrast/100, s = grayscale ? 0 : 1+saturation/100;
+    const level = 128*(1-c)+brightness*1.1, temperature = grayscale ? 0 : warmth*.55;
+    const [gainR,gainG,gainB] = whiteBalance || [1,1,1];
+    for (let y=0;y<h;y++) {
+      const ySquared = (2*(y+.5)/h-1)**2;
+      for (let x=0;x<w;x++) {
+        const i = (y*w+x)*4;
+        if (!pixels[i+3]) continue;
+        let shade = 1;
+        if (vignette) {
+          const radius = ((2*(x+.5)/w-1)**2+ySquared)*.5;
+          const edge = clamp((radius-.13)/.87,0,1);
+          shade -= vignette/100*edge*edge*(3-2*edge);
+        }
+        const r = pixels[i]*gainR, g = pixels[i+1]*gainG, b = pixels[i+2]*gainB;
+        const gray = .2126*r+.7152*g+.0722*b;
+        pixels[i] = (((r-gray)*s+gray)*c+level+temperature)*shade;
+        pixels[i+1] = (((g-gray)*s+gray)*c+level)*shade;
+        pixels[i+2] = (((b-gray)*s+gray)*c+level-temperature)*shade;
+      }
+    }
+  }
+  sharpenPixels(pixels,w,h,sharpness);
+  ctx.putImageData(frame,0,0);
+}
+function createRenderer() {
+  let cachedBase, cacheKey = "";
+  function baseInto(canvas,project,ratioX,ratioY) {
+    const ctx = context(canvas);
+    ctx.setTransform(...multiply(scale(ratioX,ratioY),project.base));
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(assets.get(project.source).picture,0,0);
+    ctx.resetTransform();
+    colorAdjust(ctx,canvas.width,canvas.height,project.adjust);
+  }
+  function estimateWhiteBalance(project) {
+    const factor = Math.min(1,384/Math.max(project.w,project.h));
+    const w = Math.max(1,Math.round(project.w*factor)), h = Math.max(1,Math.round(project.h*factor));
+    const sample = makeCanvas(w,h);
+    baseInto(sample,{...project,adjust:neutral()},w/project.w,h/project.h);
+    return estimateBalance(context(sample).getImageData(0,0,w,h).data);
+  }
+  function effect(canvas,ctx,layer,ratioX,ratioY) {
+    const points = corners(layer);
+    const [left,top,right,bottom] = bounds(points);
+    const x = clamp(Math.floor(left*ratioX),0,canvas.width);
+    const y = clamp(Math.floor(top*ratioY),0,canvas.height);
+    const w = clamp(Math.ceil(right*ratioX),x,canvas.width)-x;
+    const h = clamp(Math.ceil(bottom*ratioY),y,canvas.height)-y;
+    if (!w || !h) return;
+    function applyPatch(patch,sx,sy,sw,sh) {
+      ctx.save();
+      ctx.beginPath();
+      points.forEach((point,index) => {
+        if (index) ctx.lineTo(point.x*ratioX,point.y*ratioY);
+        else ctx.moveTo(point.x*ratioX,point.y*ratioY);
+      });
+      ctx.closePath();
+      ctx.clip();
+      ctx.imageSmoothingEnabled = layer.kind === "blur";
+      ctx.clearRect(x,y,w,h);
+      ctx.drawImage(patch,sx,sy,sw,sh,x,y,w,h);
+      ctx.restore();
+    }
+    const strength = Math.max(1,layer.strength*Math.sqrt(ratioX*ratioY));
+    if (layer.kind === "blur" && typeof ctx.filter === "string") {
+      const pad = Math.ceil(strength*2);
+      const sx = Math.max(0,x-pad), sy = Math.max(0,y-pad);
+      const sw = Math.min(canvas.width,x+w+pad)-sx, sh = Math.min(canvas.height,y+h+pad)-sy;
+      const patch = makeCanvas(sw,sh), patchCtx = context(patch);
+      patchCtx.filter = "blur("+strength+"px)";
+      patchCtx.drawImage(canvas,sx,sy,sw,sh,0,0,sw,sh);
+      applyPatch(patch,x-sx,y-sy,w,h);
+      return;
+    }
+    const patch = makeCanvas(Math.max(1,Math.ceil(w/strength)),Math.max(1,Math.ceil(h/strength)));
+    const patchCtx = context(patch);
+    patchCtx.imageSmoothingQuality = "high";
+    patchCtx.drawImage(canvas,x,y,w,h,0,0,patch.width,patch.height);
+    applyPatch(patch,0,0,patch.width,patch.height);
+  }
+  function drawLayer(ctx,canvas,layer,ratioX,ratioY) {
+    if (layer.kind === "mosaic" || layer.kind === "blur") {
+      effect(canvas,ctx,layer,ratioX,ratioY);
+      return;
+    }
+    ctx.save();
+    ctx.setTransform(...multiply(scale(ratioX,ratioY),layer.matrix));
+    if (layer.kind === "image") {
+      ctx.globalAlpha = layer.opacity;
+      ctx.imageSmoothingQuality = "high";
+      ctx.drawImage(assets.get(layer.asset).picture,0,0,layer.w,layer.h);
+    } else if (layer.kind === "text") {
+      ctx.font = textFont(layer.size);
+      ctx.fillStyle = layer.color;
+      ctx.textBaseline = "top";
+      layer.text.split("\n").forEach((line,index) => ctx.fillText(line,2,2+index*layer.size*1.2));
+    } else {
+      ctx.strokeStyle = ctx.fillStyle = layer.color;
+      ctx.lineWidth = layer.line;
+      ctx.lineCap = ctx.lineJoin = "round";
+      if (layer.kind === "rect") ctx.strokeRect(0,0,layer.w,layer.h);
+      if (layer.kind === "arrow") {
+        const [x,y,tx,ty] = layer.points;
+        const a = Math.atan2(ty-y,tx-x), head = Math.min(Math.hypot(tx-x,ty-y)*.48,layer.line*4);
+        ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(tx,ty); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(tx,ty);
+        ctx.lineTo(tx-Math.cos(a-.46)*head,ty-Math.sin(a-.46)*head);
+        ctx.lineTo(tx-Math.cos(a+.46)*head,ty-Math.sin(a+.46)*head);
+        ctx.closePath(); ctx.fill();
+      }
+    }
+    ctx.restore();
+  }
+  function paint(canvas,project,{maxEdge = Infinity,cache = false,jpeg = false} = {}) {
+    const ratio = Math.min(1,maxEdge/Math.max(project.w,project.h));
+    const w = Math.max(1,Math.round(project.w*ratio)), h = Math.max(1,Math.round(project.h*ratio));
+    if (canvas.width!==w) canvas.width = w;
+    if (canvas.height!==h) canvas.height = h;
+    if (canvas.width!==w || canvas.height!==h) throw new Error("此尺寸超出瀏覽器的畫布範圍。");
+    const ctx = context(canvas), ratioX = w/project.w, ratioY = h/project.h;
+    ctx.resetTransform();
+    ctx.clearRect(0,0,w,h);
+    if (cache) {
+      const key = JSON.stringify([project.source,w,h,project.w,project.h,project.base,project.adjust]);
+      if (key!==cacheKey) {
+        const next = makeCanvas(w,h);
+        baseInto(next,project,ratioX,ratioY);
+        cachedBase = next;
+        cacheKey = key;
+      }
+      ctx.drawImage(cachedBase,0,0);
+    } else baseInto(canvas,project,ratioX,ratioY);
+    for (const layer of project.layers) drawLayer(ctx,canvas,layer,ratioX,ratioY);
+    if (jpeg) {
+      ctx.save(); ctx.globalCompositeOperation = "destination-over";
+      ctx.fillStyle = "#fff"; ctx.fillRect(0,0,w,h); ctx.restore();
+    }
+  }
+  return {paint,estimateWhiteBalance};
+}
+
+let serial = 0, generation = 0, pendingBase = 0;
+let project = null, originalProject = null, past = [], future = [];
+let selected = null, mode = "select", panel = "edit", comparison = false;
+let cropRect = null, gesture = null, adjustDraft = null, layerDraft = null;
+let frameRequest = 0, exporting = false, savingEditor = false, restoringEditor = false;
+const stage = $("stage"), frame = $("frame"), preview = $("preview"), guide = $("guide");
+const renderer = createRenderer();
+const descriptions = {image:"圖片",text:"文字",rect:"框線",arrow:"箭頭",mosaic:"馬賽克",blur:"模糊"};
+const id = () => "layer-"+(++serial);
+const activeLayer = () => project?.layers.find(layer => layer.id===selected);
+const say = message => { $("stage-status").textContent = message; };
+const updateLayer = (layer,patch) => ({...layer,...patch});
+function stateWithLayer(state,next) {
+  return {...state,layers:state.layers.map(layer => layer.id===next.id ? next : layer)};
+}
+function pruneAssets() {
+  const used = new Set();
+  for (const state of [originalProject,project,...past,...future]) {
+    if (!state) continue;
+    used.add(state.source);
+    for (const layer of state.layers) if (layer.kind==="image") used.add(layer.asset);
+  }
+  for (const [key,asset] of assets) {
+    if (!used.has(key)) { asset.release(); assets.delete(key); }
+  }
+}
+function clearTransient() {
+  gesture = adjustDraft = layerDraft = cropRect = null;
+  comparison = false;
+}
+function commit(next,selection = selected) {
+  if (!project || next===project) return;
+  past.push(project);
+  if (past.length>45) past.shift();
+  project = next;
+  future.length = 0;
+  selected = project.layers.some(layer => layer.id===selection) ? selection : null;
+  clearTransient();
+  pruneAssets();
+  update();
+}
+function history(redo) {
+  const source = redo ? future : past, target = redo ? past : future;
+  if (!source.length) return;
+  target.push(project);
+  project = source.pop();
+  if (!activeLayer()) selected = null;
+  clearTransient();
+  update();
+  say(redo ? "已重做。" : "已復原。");
+}
+async function readAsset(file,assetId = id()) {
+  if (!file || (file.type && !file.type.startsWith("image/"))) throw new Error("請選擇可開啟的圖片檔。");
+  if (typeof createImageBitmap==="function") {
+    try {
+      const picture = await createImageBitmap(file);
+      return {id:assetId,name:file.name || "貼上的圖片",file,picture,w:picture.width,h:picture.height,release:() => picture.close()};
+    } catch {}
+  }
+  const url = URL.createObjectURL(file);
+  try {
+    const picture = new Image();
+    picture.src = url;
+    await picture.decode();
+    return {id:assetId,name:file.name || "貼上的圖片",file,picture,w:picture.naturalWidth,h:picture.naturalHeight,release:() => URL.revokeObjectURL(url)};
+  } catch {
+    URL.revokeObjectURL(url);
+    throw new Error("這張圖片讀取失敗，請試用 PNG、JPG 或 WebP。");
+  }
+}
+function activateProject(base,state = null,selection = null) {
+  generation++;
+  originalProject = newProject(base);
+  project = state || originalProject;
+  past = []; future = [];
+  selected = project.layers.some(layer => layer.id===selection) ? selection : null;
+  mode = "select";
+  clearTransient();
+  pruneAssets();
+  update();
+}
+async function openImage(file) {
+  const request = ++pendingBase;
+  try {
+    const asset = await readAsset(file);
+    if (request!==pendingBase) { asset.release(); return null; }
+    assets.set(asset.id,asset);
+    activateProject(asset);
+    say("底圖已開啟。拖入其他圖片可新增圖層。");
+    return generation;
+  } catch (error) {
+    if (request===pendingBase) say(error.message || "圖片無法開啟。");
+    return null;
+  }
+}
+async function insertImages(files) {
+  if (!project) return;
+  const start = generation;
+  const results = await Promise.allSettled(Array.from(files,file => readAsset(file)));
+  const added = results.filter(result => result.status==="fulfilled").map(result => result.value);
+  if (start!==generation) { added.forEach(asset => asset.release()); return; }
+  if (!added.length) { say("沒有可插入的圖片。"); return; }
+  const layers = added.map(asset => {
+    assets.set(asset.id,asset);
+    return imageLayer(asset,project,id());
+  });
+  mode = "select";
+  commit({...project,layers:[...project.layers,...layers]},layers.at(-1).id);
+  say(added.length===results.length ? "已插入圖片，可拖曳或縮放圖層。" : "已插入可讀取的圖片。");
+}
+
+function setPanel(next) {
+  panel = next;
+  for (const button of all("[data-panel]")) {
+    const active = button.dataset.panel===panel;
+    button.setAttribute("aria-pressed",String(active));
+    $(button.dataset.panel+"-tools").hidden = !active;
+  }
+}
+function setMode(next) {
+  if (!project && next!=="select") return;
+  clearTransient();
+  mode = next;
+  if (next==="crop") setPanel("edit");
+  if (["text","arrow","rect","mosaic","blur"].includes(next)) setPanel("draw");
+  updateTools();
+  schedule();
+}
+function renderLayerList() {
+  const list = $("layers");
+  list.replaceChildren();
+  if (!project) return;
+  for (const layer of project.layers.slice().reverse()) {
+    const row = document.createElement("li"), button = document.createElement("button");
+    button.type = "button";
+    button.dataset.layer = layer.id;
+    button.setAttribute("aria-current",String(layer.id===selected));
+    const name = layer.kind==="image" ? assets.get(layer.asset).name : layer.kind==="text" ? layer.text.split("\n")[0] : "";
+    button.textContent = descriptions[layer.kind]+(name ? " · "+name : "");
+    row.append(button); list.append(row);
+  }
+  const base = document.createElement("li");
+  base.className = "base-row";
+  base.textContent = "底圖 · "+assets.get(project.source).name;
+  list.append(base);
+}
+function syncSelection() {
+  const layer = activeLayer(), index = project?.layers.findIndex(item => item.id===selected) ?? -1;
+  $("selection-fields").hidden = !layer;
+  $("image-fields").hidden = layer?.kind!=="image";
+  $("text-fields").hidden = layer?.kind!=="text";
+  $("effect-field").hidden = layer?.kind!=="mosaic" && layer?.kind!=="blur";
+  $("layer-up").disabled = index<0 || index===project.layers.length-1;
+  $("layer-down").disabled = index<=0;
+  $("layer-delete").disabled = !layer;
+  if (layer) syncAngleFields(layer);
+  if (layer?.kind==="image") {
+    const opacity = Math.round(layer.opacity*100);
+    $("layer-opacity").value = opacity;
+    $("opacity-value").textContent = opacity+"%";
+  }
+  if (layer?.kind==="text") {
+    $("layer-text").value = layer.text;
+    $("layer-size").value = layer.size;
+    $("layer-color").value = layer.color;
+  }
+  if (layer?.kind==="blur" || layer?.kind==="mosaic") {
+    $("effect-label").textContent = layer.kind==="blur" ? "模糊半徑 px" : "像素方塊 px";
+    $("effect-value").value = layer.strength;
+  }
+}
+function updateTools() {
+  for (const name of ["insert","add-layer","apply-resize","resize-w","resize-h","resize-lock","crop-ratio",
+    "clear-adjust","original","reset-photo","grayscale","auto-balance","mark-color","mark-line"]) $(name).disabled = !project;
+  $("export").disabled = !project || exporting;
+  $("save-html").disabled = savingEditor || restoringEditor;
+  $("undo").disabled = !past.length;
+  $("redo").disabled = !future.length;
+  for (const button of all("[data-mode]")) {
+    const value = button.dataset.mode;
+    button.disabled = !project && value!=="select";
+    button.setAttribute("aria-pressed",String(value===mode && !comparison));
+  }
+  for (const control of all("[data-transform],[data-adjust]")) control.disabled = !project;
+  const settings = adjustDraft || project?.adjust;
+  for (const button of all("[data-look]")) {
+    button.disabled = !project;
+    const preset = looks[button.dataset.look];
+    const active = settings && Object.entries(preset).every(([key,value]) => settings[key]===value);
+    button.setAttribute("aria-pressed",String(!!active));
+  }
+  const balanced = !!project?.adjust.whiteBalance;
+  $("auto-balance").setAttribute("aria-pressed",String(balanced));
+  $("auto-balance").textContent = balanced ? "自動白平衡 · 已套用" : "自動白平衡";
+  $("original").setAttribute("aria-pressed",String(comparison));
+  $("original").textContent = comparison ? "返回編輯結果" : "查看原圖";
+  updateCropControls();
+  guide.style.cursor = comparison ? "default" : mode==="select" ? "default" : mode==="text" ? "text" : "crosshair";
+}
+function updateCropControls() {
+  const active = !!project && mode==="crop" && !comparison;
+  const hasArea = active && cropRect && cropRect.w>=1 && cropRect.h>=1;
+  $("crop-bar").hidden = !active;
+  $("apply-crop").disabled = !hasArea;
+  if (hasArea) {
+    const {w,h} = cropPixels(project,cropRect);
+    $("crop-info").textContent = "保留範圍 "+w+" × "+h+" px。按「套用裁切」或 Enter 確認。";
+  } else if (active) {
+    $("crop-info").textContent = "在圖片上拖曳，圈出要保留的範圍。";
+  }
+  if (active) guide.setAttribute("aria-describedby","crop-info");
+  else guide.removeAttribute("aria-describedby");
+}
+function update() {
+  $("empty").hidden = !!project;
+  frame.hidden = !project;
+  if (project) {
+    $("dimensions").textContent = project.w+" × "+project.h+" px";
+    $("resize-w").value = project.w;
+    $("resize-h").value = project.h;
+    for (const control of all("[data-adjust]")) {
+      const key = control.dataset.adjust;
+      control.value = project.adjust[key];
+      $("value-"+key).textContent = control.value;
+    }
+    $("grayscale").checked = project.adjust.grayscale;
+  }
+  updateTools();
+  renderLayerList();
+  syncSelection();
+  schedule();
+}
+function pickLayer(layer) {
+  const next = layer?.id ?? null;
+  if (selected===next) return;
+  selected = next;
+  renderLayerList();
+  syncSelection();
+  schedule();
+}
+function fitFrame() {
+  if (!project) return;
+  const pad = 32;
+  const ratio = Math.min(1,Math.max(1,stage.clientWidth-pad)/project.w,Math.max(1,stage.clientHeight-pad)/project.h);
+  frame.style.width = Math.max(1,project.w*ratio)+"px";
+  frame.style.height = Math.max(1,project.h*ratio)+"px";
+}
+function originalInFrame(state) {
+  const source = originalProject;
+  const factor = Math.min(state.w/source.w,state.h/source.h);
+  return transform(source,multiply(translate((state.w-source.w*factor)/2,(state.h-source.h*factor)/2),scale(factor,factor)),state.w,state.h);
+}
+function drawGuide(state) {
+  if (guide.width!==preview.width) guide.width = preview.width;
+  if (guide.height!==preview.height) guide.height = preview.height;
+  const ctx = context(guide);
+  ctx.resetTransform(); ctx.clearRect(0,0,guide.width,guide.height);
+  if (comparison) return;
+  const actual = guide.getBoundingClientRect();
+  const unit = guide.width/Math.max(1,actual.width);
+  const toCanvas = point => ({x:point.x*guide.width/state.w,y:point.y*guide.height/state.h});
+  ctx.lineWidth = unit*1.5;
+  if (mode==="crop" && cropRect) {
+    const {x,y} = toCanvas(cropRect);
+    const w = cropRect.w*guide.width/state.w, h = cropRect.h*guide.height/state.h;
+    ctx.fillStyle = "#2b1f1970";
+    ctx.fillRect(0,0,guide.width,guide.height);
+    ctx.clearRect(x,y,w,h);
+    ctx.strokeStyle = "#fff";
+    ctx.setLineDash([5*unit,4*unit]);
+    ctx.strokeRect(x,y,w,h);
+    ctx.setLineDash([]);
+    return;
+  }
+  const layer = state.layers.find(item => item.id===selected);
+  if (layer && mode==="select") {
+    const points = corners(layer).map(toCanvas);
+    ctx.beginPath();
+    points.forEach((point,index) => { if (index) ctx.lineTo(point.x,point.y); else ctx.moveTo(point.x,point.y); });
+    ctx.closePath();
+    ctx.strokeStyle = "#fff";
+    ctx.lineWidth = 3.5*unit;
+    ctx.stroke();
+    ctx.strokeStyle = "#126ca3";
+    ctx.lineWidth = 1.5*unit;
+    ctx.stroke();
+    ctx.fillStyle = "#126ca3";
+    ctx.fillRect(points[2].x-4.5*unit,points[2].y-4.5*unit,9*unit,9*unit);
+    ctx.strokeStyle = "#fff";
+    ctx.strokeRect(points[2].x-4.5*unit,points[2].y-4.5*unit,9*unit,9*unit);
+  }
+}
+function render() {
+  frameRequest = 0;
+  if (!project) return;
+  fitFrame();
+  let state = comparison ? originalInFrame(project) : project;
+  if (adjustDraft && !comparison) state = {...state,adjust:adjustDraft};
+  if (layerDraft && !comparison) state = stateWithLayer(state,layerDraft);
+  if (gesture?.drawing && !comparison) state = {...state,layers:[...state.layers,gesture.drawing]};
+  try {
+    renderer.paint(preview,state,{maxEdge:1536,cache:true});
+    drawGuide(state);
+  } catch (error) {
+    say(error.message || "無法更新預覽。");
+  }
+}
+function schedule() { if (!frameRequest) frameRequest = requestAnimationFrame(render); }
+function pointerPoint(event) {
+  const rect = guide.getBoundingClientRect();
+  return {x:(event.clientX-rect.left)*project.w/rect.width,y:(event.clientY-rect.top)*project.h/rect.height};
+}
+function clippedPoint(point) { return {x:clamp(point.x,0,project.w),y:clamp(point.y,0,project.h)}; }
+function pointerHit(point) {
+  return project.layers.findLast(layer => {
+    const local = apply(inverse(layer.matrix),point);
+    const extra = layer.line || 0;
+    return local.x>=-extra && local.y>=-extra && local.x<=layer.w+extra && local.y<=layer.h+extra;
+  });
+}
+function markingLine() { return clamp(Number($("mark-line").value)||6,1,300); }
+function makeDrawing(action,a,b) {
+  const box = dragBox(a,b);
+  if (action==="arrow" ? Math.hypot(box.w,box.h)<1 : box.w<1 || box.h<1) return null;
+  return {id:null,kind:action,w:Math.max(1,box.w),h:Math.max(1,box.h),matrix:translate(box.x,box.y),
+    color:$("mark-color").value,line:markingLine(),strength:action==="blur" ? 9 : 14,
+    points:[a.x-box.x,a.y-box.y,b.x-box.x,b.y-box.y]};
+}
+function startPointer(event) {
+  if (!project || comparison || (event.pointerType==="mouse" && event.button!==0) || gesture) return;
+  const point = pointerPoint(event);
+  if (mode==="text") {
+    const layer = measureTextLayer({id:id(),kind:"text",text:"文字",size:clamp(Math.round(project.w*.045),16,250),
+      color:$("mark-color").value,matrix:translate(point.x,point.y)});
+    mode = "select";
+    commit({...project,layers:[...project.layers,layer]},layer.id);
+    $("layer-text").focus(); $("layer-text").select();
+    event.preventDefault();
+    return;
+  }
+  if (mode==="select") {
+    const layer = activeLayer();
+    const pointOnHandle = layer && corners(layer)[2];
+    const ratio = guide.getBoundingClientRect().width/project.w;
+    const resizing = pointOnHandle && Math.hypot(point.x-pointOnHandle.x,point.y-pointOnHandle.y)*ratio<12;
+    const next = resizing ? layer : pointerHit(point);
+    pickLayer(next);
+    if (!next) return;
+    gesture = {pointer:event.pointerId,action:resizing ? "scale" : "move",start:point,layer:next,handle:pointOnHandle};
+  } else {
+    gesture = {pointer:event.pointerId,action:mode,start:clippedPoint(point)};
+    if (mode==="crop") { cropRect = null; updateTools(); schedule(); }
+  }
+  guide.focus({preventScroll:true});
+  if (guide.setPointerCapture) {
+    try { guide.setPointerCapture(event.pointerId); } catch {}
+  }
+  event.preventDefault();
+}
+function movePointer(event) {
+  if (!gesture || event.pointerId!==gesture.pointer) return;
+  const point = pointerPoint(event);
+  const {action,start,layer,handle} = gesture;
+  const dx = point.x-start.x, dy = point.y-start.y;
+  if (action==="move") layerDraft = {...layer,matrix:multiply(translate(dx,dy),layer.matrix)};
+  else if (action==="scale") layerDraft = scaleLayer(layer,{x:handle.x+dx,y:handle.y+dy});
+  else if (action==="crop") {
+    cropRect = cropBox(start,clippedPoint(point),Number($("crop-ratio").value),project);
+    updateCropControls();
+  } else gesture.drawing = makeDrawing(action,start,clippedPoint(point));
+  schedule();
+}
+function endPointer(event) {
+  if (!gesture || event.pointerId!==gesture.pointer) return;
+  const cancelled = event.type==="pointercancel";
+  if (!cancelled) movePointer(event);
+  const {action,layer,drawing} = gesture, next = layerDraft;
+  gesture = layerDraft = null;
+  if (cancelled) { if (action==="crop") cropRect = null; updateTools(); schedule(); return; }
+  if (next && next.matrix.some((value,index) => Math.abs(value-layer.matrix[index])>.00001)) {
+    commit(stateWithLayer(project,next),next.id);
+  } else if (drawing) {
+    const object = {...drawing,id:id()};
+    mode = "select";
+    commit({...project,layers:[...project.layers,object]},object.id);
+  } else schedule();
+}
+function applyCrop() {
+  if (!project || !cropRect || cropRect.w<1 || cropRect.h<1) return;
+  const next = cropProject(project,cropRect);
+  mode = "select";
+  commit(next);
+  say("已裁切為 "+next.w+" × "+next.h+" px。");
+}
+function applyResize(event) {
+  event.preventDefault();
+  if (!project) return;
+  const w = Number($("resize-w").value), h = Number($("resize-h").value);
+  if (!positiveInt(w) || !positiveInt(h)) return;
+  if (w!==project.w || h!==project.h) commit(transform(project,scale(w/project.w,h/project.h),w,h));
+}
+function syncResize(source) {
+  if (!project || !$("resize-lock").checked) return;
+  const value = Number($(source==="w"?"resize-w":"resize-h").value);
+  if (!positiveInt(value)) return;
+  const ratio = source==="w" ? project.h/project.w : project.w/project.h;
+  $(source==="w"?"resize-h":"resize-w").value = Math.max(1,Math.round(value*ratio));
+}
+function changeOrder(delta) {
+  const index = project?.layers.findIndex(layer => layer.id===selected) ?? -1;
+  if (index<0) return;
+  const layers = reorderLayer(project.layers,index,delta);
+  if (layers!==project.layers) commit({...project,layers});
+}
+function deleteLayer() {
+  if (!activeLayer()) return;
+  commit({...project,layers:project.layers.filter(layer => layer.id!==selected)},null);
+}
+function updateSelected(patch) {
+  const layer = activeLayer();
+  if (!layer) return;
+  const next = updateLayer(layer,patch);
+  commit(stateWithLayer(project,next.kind==="text" ? measureTextLayer(next) : next));
+}
+function bindLayerSlider(name,key,parse) {
+  const field = $(name);
+  field.addEventListener("input",() => {
+    const layer = activeLayer();
+    if (!layer) return;
+    layerDraft = updateLayer(layer,{[key]:parse(field.value)});
+    if (key==="opacity") $("opacity-value").textContent = field.value+"%";
+    schedule();
+  });
+  field.addEventListener("change",() => updateSelected({[key]:parse(field.value)}));
+}
+function syncAngleFields(layer,except = null) {
+  const angle = visibleAngle(layer);
+  for (const name of ["layer-angle","layer-angle-slider"]) {
+    const field = $(name);
+    if (field!==except) field.value = angle;
+  }
+}
+function setSelectedAngle(value) {
+  const layer = activeLayer();
+  if (!layer) return;
+  const next = value!=="" && Number.isFinite(Number(value)) ? rotateLayer(layer,Number(value)) : layer;
+  if (next!==layer) commit(stateWithLayer(project,next));
+  else {
+    layerDraft = null;
+    syncAngleFields(layer);
+    schedule();
+  }
+}
+function bindAngle(name) {
+  const field = $(name);
+  field.addEventListener("input",() => {
+    const layer = activeLayer();
+    if (!layer) return;
+    const valid = field.value!=="" && Number.isFinite(Number(field.value));
+    layerDraft = valid ? rotateLayer(layer,Number(field.value)) : null;
+    if (comparison) { comparison = false; updateTools(); }
+    syncAngleFields(layerDraft || layer,field);
+    schedule();
+  });
+  field.addEventListener("change",() => setSelectedAngle(field.value));
+}
+const formats = { "image/png":"png","image/jpeg":"jpg","image/webp":"webp" };
+function downloadFile(blob,filename) {
+  const url = URL.createObjectURL(blob), link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url),60000);
+}
+function referencedImages(state) {
+  return new Set([state.source,...state.layers.filter(layer => layer.kind==="image").map(layer => layer.asset)]);
+}
+function fileBase64(file) {
+  return new Promise((resolve,reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const data = String(reader.result), comma = data.indexOf(",");
+      if (comma<0) reject(new Error("無法取得圖片資料。"));
+      else resolve(data.slice(comma+1));
+    };
+    reader.onerror = () => reject(new Error("無法讀取內嵌圖片。"));
+    reader.readAsDataURL(file);
+  });
+}
+async function saveEditor() {
+  if (savingEditor || restoringEditor) return;
+  savingEditor = true;
+  updateTools();
+  const snapshot = project, selection = selected;
+  try {
+    let payload = null, filename = "圖片編輯器.html";
+    if (snapshot) {
+      const source = assets.get(snapshot.source);
+      const stem = source.name.replace(/[\\/:*?"<>|]/g,"_").replace(/\.[^.]+$/u,"").trim() || "圖片";
+      filename = stem+"-可編輯.html";
+      const files = Array.from(referencedImages(snapshot),key => assets.get(key));
+      const embedded = await Promise.all(files.map(async asset => ({
+        id:asset.id,name:asset.name,type:asset.file.type,base64:await fileBase64(asset.file),
+      })));
+      payload = {version:1,project:snapshot,selected:selection,assets:embedded};
+    }
+    // JSON is an inert script payload. Escape '<' so any layer text remains data.
+    const data = JSON.stringify(payload).replace(/</g,"\\u003c");
+    const blob = new Blob([editorShell[0],data,editorShell[1]],{type:"text/html;charset=utf-8"});
+    downloadFile(blob,filename);
+    say("已開始下載 "+filename+"。");
+  } catch (error) {
+    say(error.message || "無法另存 HTML。");
+  } finally {
+    savingEditor = false;
+    updateTools();
+  }
+}
+function parseEditor(data) {
+  const record = JSON.parse(data), state = record?.project;
+  const identifier = value => typeof value==="string" && /^layer-[1-9]\d*$/.test(value) && positiveInt(Number(value.slice(6)));
+  const positive = value => Number.isFinite(value) && value>0;
+  const vector = (value,size) => Array.isArray(value) && value.length===size && value.every(Number.isFinite);
+  const matrix = value => {
+    if (!vector(value,6)) return false;
+    const determinant = value[0]*value[3]-value[1]*value[2];
+    return Number.isFinite(determinant) && determinant!==0;
+  };
+  const color = value => typeof value==="string" && /^#[0-9a-f]{6}$/i.test(value);
+  const keys = new Set();
+  function acceptId(key) {
+    if (!identifier(key) || keys.has(key)) return false;
+    keys.add(key);
+    return true;
+  }
+  function validLayer(layer) {
+    if (!layer || !acceptId(layer.id) || !positive(layer.w) || !positive(layer.h) || !matrix(layer.matrix)) return false;
+    switch (layer.kind) {
+      case "image": return identifier(layer.asset) && Number.isFinite(layer.opacity) && layer.opacity>=0 && layer.opacity<=1;
+      case "text": return typeof layer.text==="string" && positive(layer.size) && color(layer.color);
+      case "rect": return positive(layer.line) && color(layer.color);
+      case "arrow": return positive(layer.line) && color(layer.color) && vector(layer.points,4);
+      case "mosaic":
+      case "blur": return positive(layer.strength);
+      default: return false;
+    }
+  }
+  const invalid = () => new Error("這個 HTML 的圖片專案資料無法讀取。");
+  if (record?.version!==1 || !state || !identifier(state.source) || !positiveInt(state.w) || !positiveInt(state.h)
+      || !matrix(state.base) || !Array.isArray(state.layers) || !state.layers.every(validLayer)
+      || !["brightness","contrast","saturation","warmth"].every(key => Number.isFinite(state.adjust?.[key]))
+      || typeof state.adjust.grayscale!=="boolean" || !Array.isArray(record.assets)) throw invalid();
+  const adjust = {...neutral(),...state.adjust};
+  if (!["sharpness","vignette"].every(key => Number.isFinite(adjust[key]) && adjust[key]>=0 && adjust[key]<=100)
+      || (adjust.whiteBalance!==null && (!vector(adjust.whiteBalance,3) || !adjust.whiteBalance.every(positive)))) throw invalid();
+  const needed = referencedImages(state);
+  for (const asset of record.assets) {
+    if (!asset || !acceptId(asset.id) || !needed.delete(asset.id) || typeof asset.name!=="string"
+        || typeof asset.type!=="string" || (asset.type && !asset.type.startsWith("image/"))
+        || typeof asset.base64!=="string" || !asset.base64.length) throw invalid();
+  }
+  if (needed.size) throw invalid();
+  let highestId = 0;
+  for (const key of keys) highestId = Math.max(highestId,Number(key.slice(6)));
+  return {state:{...state,adjust},assets:record.assets,selection:record.selected,highestId};
+}
+async function decodeEmbedded(asset) {
+  const binary = atob(asset.base64), chunks = [];
+  for (let start=0; start<binary.length; start+=32768) {
+    const segment = binary.slice(start,start+32768);
+    chunks.push(Uint8Array.from(segment,character => character.charCodeAt(0)));
+  }
+  return readAsset(new File(chunks,asset.name,{type:asset.type}),asset.id);
+}
+async function restoreEditor() {
+  const data = projectSlot.textContent;
+  projectSlot.textContent = "null";
+  if (!data.trim() || data.trim()==="null") return;
+  const request = ++pendingBase;
+  restoringEditor = true;
+  updateTools();
+  say("正在載入 HTML 裡的圖片與圖層。");
+  let loaded = [];
+  try {
+    const record = parseEditor(data);
+    const results = await Promise.allSettled(record.assets.map(decodeEmbedded));
+    loaded = results.filter(result => result.status==="fulfilled").map(result => result.value);
+    if (request!==pendingBase) return;
+    if (loaded.length!==record.assets.length) throw new Error("HTML 裡的部分圖片無法開啟。");
+    for (const asset of loaded) assets.set(asset.id,asset);
+    loaded = [];
+    serial = Math.max(serial,record.highestId);
+    activateProject(assets.get(record.state.source),record.state,record.selection);
+    say("已開啟可編輯的 HTML。");
+  } catch (error) {
+    if (request===pendingBase) say(error.message || "無法載入 HTML 內的圖片。");
+  } finally {
+    loaded.forEach(asset => asset.release());
+    restoringEditor = false;
+    updateTools();
+  }
+}
+function openExport() {
+  if (!project || exporting) return;
+  $("export-error").hidden = true;
+  $("export-name").value = (assets.get(project.source).name.replace(/\.[^.]+$/u,"") || "圖片")+"-編輯";
+  $("export-dimensions").textContent = project.w+" × "+project.h+" px";
+  $("export-dialog").showModal();
+}
+async function download(event) {
+  event.preventDefault();
+  if (!project || exporting) return;
+  exporting = true;
+  $("download").disabled = true;
+  $("close-export").disabled = true;
+  $("export-error").hidden = true;
+  updateTools();
+  try {
+    const type = $("export-type").value;
+    const quality = Number($("export-quality").value)/100;
+    const filename = ($("export-name").value.trim().replace(/[\\/:*?"<>|]/g,"_").replace(/\.(?:png|jpe?g|webp)$/iu,"") || "圖片")+"."+formats[type];
+    const output = makeCanvas(project.w,project.h);
+    renderer.paint(output,project,{jpeg:type==="image/jpeg"});
+    const blob = await new Promise((resolve,reject) => output.toBlob(value => value ? resolve(value) : reject(new Error("圖片輸出失敗，請縮小尺寸後重試。")),type,quality));
+    if (blob.type!==type) throw new Error("此瀏覽器不支援這個輸出格式，請改用 PNG。");
+    downloadFile(blob,filename);
+    $("export-dialog").close();
+    say("已開始下載 "+filename+"。");
+  } catch (error) {
+    $("export-error").textContent = error.message || "圖片無法下載。";
+    $("export-error").hidden = false;
+  } finally {
+    exporting = false;
+    $("download").disabled = false;
+    $("close-export").disabled = false;
+    updateTools();
+  }
+}
+function acceptFiles(files) {
+  const images = Array.from(files).filter(file => !file.type || file.type.startsWith("image/"));
+  if (!images.length) { say("請選擇圖片檔。"); return; }
+  if (project) insertImages(images);
+  else openImage(images[0]).then(opened => {
+    if (opened===generation && images.length>1) insertImages(images.slice(1));
+  });
+}
+function toggleAutoBalance() {
+  if (!project) return;
+  if (project.adjust.whiteBalance) {
+    commit({...project,adjust:{...project.adjust,whiteBalance:null}});
+    say("已關閉自動白平衡。");
+    return;
+  }
+  try {
+    const whiteBalance = renderer.estimateWhiteBalance(project);
+    if (!whiteBalance) { say("畫面找不到足夠的中性色，可用色溫滑桿調整。"); return; }
+    commit({...project,adjust:{...project.adjust,whiteBalance}});
+    say("已套用自動白平衡。");
+  } catch {
+    say("這張圖片無法套用自動白平衡。");
+  }
+}
+for (const name of ["open","pick-empty"]) $(name).addEventListener("click",() => $("base-file").click());
+for (const name of ["insert","add-layer"]) $(name).addEventListener("click",() => $("layer-file").click());
+$("base-file").addEventListener("change",event => {
+  const file = event.target.files[0];
+  event.target.value = "";
+  if (file) openImage(file);
+});
+$("layer-file").addEventListener("change",event => {
+  const files = Array.from(event.target.files);
+  event.target.value = "";
+  if (files.length) insertImages(files);
+});
+for (const button of all("[data-panel]")) button.addEventListener("click",() => {
+  if (panel!==button.dataset.panel) { setPanel(button.dataset.panel); setMode("select"); }
+});
+for (const button of all("[data-mode]")) button.addEventListener("click",() => setMode(button.dataset.mode));
+for (const button of all("[data-transform]")) button.addEventListener("click",() => {
+  if (project) commit(canvasTransform(project,button.dataset.transform));
+});
+for (const button of all("[data-look]")) button.addEventListener("click",() => {
+  if (!project) return;
+  commit({...project,adjust:{...project.adjust,...looks[button.dataset.look]}});
+  say("已套用 "+button.textContent+" 色調。");
+});
+$("auto-balance").addEventListener("click",toggleAutoBalance);
+for (const control of all("[data-adjust]")) {
+  const key = control.dataset.adjust;
+  control.addEventListener("input",() => {
+    if (!project) return;
+    comparison = false;
+    adjustDraft = {...project.adjust,[key]:Number(control.value)};
+    $("value-"+key).textContent = control.value;
+    updateTools(); schedule();
+  });
+  control.addEventListener("change",() => { if (adjustDraft) commit({...project,adjust:adjustDraft}); });
+}
+$("grayscale").addEventListener("change",event => { if (project) commit({...project,adjust:{...project.adjust,grayscale:event.target.checked}}); });
+$("clear-adjust").addEventListener("click",() => { if (project) commit({...project,adjust:neutral()}); });
+$("original").addEventListener("click",() => { if (project) { comparison = !comparison; updateTools(); schedule(); } });
+$("reset-photo").addEventListener("click",() => {
+  if (project && project!==originalProject) { mode = "select"; commit(originalProject,null); say("已回到原圖，可按復原回到編輯結果。"); }
+});
+$("crop-ratio").addEventListener("change",() => { cropRect = null; updateTools(); schedule(); });
+$("apply-crop").addEventListener("click",applyCrop);
+$("cancel-crop").addEventListener("click",() => setMode("select"));
+$("resize-form").addEventListener("submit",applyResize);
+$("resize-w").addEventListener("input",() => syncResize("w"));
+$("resize-h").addEventListener("input",() => syncResize("h"));
+$("layer-up").addEventListener("click",() => changeOrder(1));
+$("layer-down").addEventListener("click",() => changeOrder(-1));
+$("layer-delete").addEventListener("click",deleteLayer);
+$("layers").addEventListener("click",event => {
+  const key = event.target.closest("[data-layer]")?.dataset.layer;
+  if (!key || !project) return;
+  setMode("select");
+  pickLayer(project.layers.find(layer => layer.id===key));
+});
+bindLayerSlider("layer-opacity","opacity",value => Number(value)/100);
+bindLayerSlider("effect-value","strength",Number);
+bindAngle("layer-angle");
+bindAngle("layer-angle-slider");
+for (const [name,delta] of [["layer-rotate-left",-90],["layer-rotate-right",90]]) {
+  $(name).addEventListener("click",() => {
+    const layer = activeLayer();
+    if (layer) setSelectedAngle(layerAngle(layer)+delta);
+  });
+}
+$("layer-text").addEventListener("change",event => updateSelected({text:event.target.value}));
+$("layer-size").addEventListener("change",event => updateSelected({size:clamp(Number(event.target.value)||16,6,1000)}));
+$("layer-color").addEventListener("change",event => updateSelected({color:event.target.value}));
+$("undo").addEventListener("click",() => history(false));
+$("redo").addEventListener("click",() => history(true));
+$("save-html").addEventListener("click",saveEditor);
+$("export").addEventListener("click",openExport);
+$("close-export").addEventListener("click",() => $("export-dialog").close());
+$("export-dialog").addEventListener("cancel",event => { if (exporting) event.preventDefault(); });
+$("export-form").addEventListener("submit",download);
+$("export-type").addEventListener("change",event => { $("quality-field").hidden = event.target.value==="image/png"; });
+$("export-quality").addEventListener("input",event => { $("quality-value").textContent = event.target.value+"%"; });
+guide.addEventListener("pointerdown",startPointer);
+window.addEventListener("pointermove",movePointer);
+window.addEventListener("pointerup",endPointer);
+window.addEventListener("pointercancel",endPointer);
+stage.addEventListener("dragover",event => { event.preventDefault(); stage.dataset.drop = "true"; });
+stage.addEventListener("dragleave",event => { if (!stage.contains(event.relatedTarget)) delete stage.dataset.drop; });
+stage.addEventListener("drop",event => { event.preventDefault(); delete stage.dataset.drop; acceptFiles(event.dataTransfer.files); });
+document.addEventListener("paste",event => {
+  if (event.target.closest("input,textarea") || $("export-dialog").open) return;
+  const images = Array.from(event.clipboardData?.files || []).filter(file => file.type.startsWith("image/"));
+  if (!images.length) return;
+  event.preventDefault(); acceptFiles(images);
+});
+document.addEventListener("keydown",event => {
+  if ($("export-dialog").open || event.isComposing) return;
+  const key = event.key.toLowerCase();
+  const inField = event.target.closest("input,textarea,select");
+  if ((event.ctrlKey || event.metaKey) && key==="s") {
+    event.preventDefault();
+    if (inField) inField.blur();
+    saveEditor();
+    return;
+  }
+  if (inField) return;
+  if (event.ctrlKey || event.metaKey) {
+    if (key==="z" || key==="y") { event.preventDefault(); history(key==="y" || event.shiftKey); }
+  } else if (key==="escape") setMode("select");
+  else if (key==="enter" && mode==="crop" && event.target===guide) { event.preventDefault(); applyCrop(); }
+  else if (key==="delete" && event.target===guide) { event.preventDefault(); deleteLayer(); }
+});
+new ResizeObserver(schedule).observe(stage);
+setPanel("edit");
+update();
+restoreEditor();
+})();
+</script>
+</body>
+</html>
