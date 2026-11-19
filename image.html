@@ -1,6 +1,5 @@
 <!doctype html>
-<html lang="zh-Hant">
-<head>
+<html lang="zh-Hant"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light">
@@ -24,12 +23,18 @@
   .pair{display:grid;grid-template-columns:1fr 1fr;gap:7px}.range-label,.inline-label{display:flex;align-items:center;justify-content:space-between;gap:6px;font-size:.84rem}.inline-label{justify-content:flex-start}
   input[type="range"],input[type="checkbox"]{accent-color:var(--accent)}input[type="color"]{padding:3px!important}
   button.small{font-size:.79rem;padding:5px 7px}.buttons button{flex:1 0 auto}
-  #stage{position:relative;display:grid;place-items:center;min-height:350px;height:min(70vh,760px);padding:16px;overflow:hidden;background:#e9e0d4}
-  .empty{text-align:center;display:grid;justify-items:center;gap:12px;padding:16px}
+  #stage{position:relative;min-height:350px;height:min(70vh,760px);overflow:auto;overflow-anchor:none;background:#e9e0d4}
+  #stage-content{display:flex;align-items:center;justify-content:center;width:max-content;min-width:100%;min-height:100%;padding:16px}
+  .empty{position:absolute;inset:0;text-align:center;display:grid;place-content:center;justify-items:center;gap:12px;padding:16px}
   .empty h2{font:600 1.35rem "Noto Serif TC","Songti TC",PMingLiU,Georgia,serif}.empty p{max-width:23rem}
-  #frame{position:relative;box-shadow:0 5px 26px #35291d28;background-color:#fff;background-image:conic-gradient(#e1ded9 25%,transparent 0 50%,#e1ded9 0 75%,transparent 0);background-size:16px 16px}
-  #frame canvas{display:block;width:100%;height:100%}#guide{position:absolute;inset:0;touch-action:none;cursor:default}#guide:focus-visible{outline-offset:4px}
+  #frame{position:relative;flex:none;box-shadow:0 5px 26px #35291d28;background-color:#fff;background-image:conic-gradient(#e1ded9 25%,transparent 0 50%,#e1ded9 0 75%,transparent 0);background-size:16px 16px}
+  #frame canvas{display:block;width:100%;height:100%}#guide{position:absolute;inset:0;touch-action:none;cursor:var(--tool-cursor,var(--guide-cursor,default))}#guide:focus-visible{outline-offset:4px}
+  #stage[data-pan="ready"]{--tool-cursor:grab}
+  #stage[data-pan="dragging"]{--tool-cursor:grabbing}
+  #stage[data-pan] #stage-content{cursor:var(--tool-cursor);touch-action:none;user-select:none}
   #stage[data-drop="true"]{box-shadow:inset 0 0 0 2px var(--accent)}
+  .zoom-bar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:8px 10px;border-bottom:1px solid var(--line)}
+  .zoom-bar button{font-size:.84rem}.zoom-step{min-width:36px}.zoom-bar output{min-width:3.5rem;text-align:center;font-variant-numeric:tabular-nums}
   .stage-info{display:flex;justify-content:space-between;gap:7px;flex-wrap:wrap;padding:8px 10px}
   .crop-bar{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;padding:8px 10px;border-top:1px solid var(--line);background:var(--active)}
   .crop-bar p{flex:1 1 13rem;font-size:.84rem;line-height:1.5}
@@ -49,13 +54,13 @@
   <h1>圖片編輯器</h1>
   <div class="header-actions">
     <button type="button" id="open">開啟圖片</button>
-    <button type="button" id="insert" disabled>插入圖片</button>
-    <button type="button" id="undo" title="復原（Ctrl+Z）" disabled>復原</button>
-    <button type="button" id="redo" title="重做（Ctrl+Shift+Z）" disabled>重做</button>
+    <button type="button" id="insert" disabled="">插入圖片</button>
+    <button type="button" id="undo" title="復原（Ctrl+Z）" disabled="">復原</button>
+    <button type="button" id="redo" title="重做（Ctrl+Shift+Z）" disabled="">重做</button>
     <button type="button" id="save-html" title="另存可繼續編輯的 HTML（Ctrl+S）">另存 HTML</button>
-    <button type="button" id="export" class="primary" disabled>下載圖片</button>
-    <input id="base-file" type="file" accept="image/*" hidden>
-    <input id="layer-file" type="file" accept="image/*" multiple hidden>
+    <button type="button" id="export" class="primary" disabled="">下載圖片</button>
+    <input id="base-file" type="file" accept="image/*" hidden="">
+    <input id="layer-file" type="file" accept="image/*" multiple="" hidden="">
   </div>
 </header>
 <main class="workspace">
@@ -69,7 +74,7 @@
       <div class="control-group">
         <div class="buttons">
           <button type="button" data-mode="select" aria-pressed="true">選取</button>
-          <button type="button" data-mode="crop" aria-pressed="false" disabled>開始裁切</button>
+          <button type="button" data-mode="crop" aria-pressed="false" disabled="">開始裁切</button>
         </div>
         <label class="field">裁切比例
           <select id="crop-ratio"><option value="">自由</option><option value="1">1:1</option><option value="1.3333333333333333">4:3</option><option value="1.5">3:2</option><option value="1.7777777777777777">16:9</option><option value="0.5625">9:16</option></select>
@@ -85,14 +90,14 @@
       </div>
       <form class="control-group" id="resize-form">
         <div class="pair">
-          <label class="field">寬度 px<input id="resize-w" type="number" min="1" step="1" required></label>
-          <label class="field">高度 px<input id="resize-h" type="number" min="1" step="1" required></label>
+          <label class="field">寬度 px<input id="resize-w" type="number" min="1" step="1" required=""></label>
+          <label class="field">高度 px<input id="resize-h" type="number" min="1" step="1" required=""></label>
         </div>
-        <label class="inline-label"><input id="resize-lock" type="checkbox" checked> 鎖定比例</label>
+        <label class="inline-label"><input id="resize-lock" type="checkbox" checked=""> 鎖定比例</label>
         <button type="submit" id="apply-resize">套用尺寸</button>
       </form>
     </section>
-    <section id="adjust-tools" class="panel-body" hidden>
+    <section id="adjust-tools" class="panel-body" hidden="">
       <div class="control-group">
         <h2>快速色調</h2>
         <div class="pair">
@@ -116,7 +121,7 @@
       </div>
       <button type="button" class="small" id="reset-photo">回到原圖</button>
     </section>
-    <section id="draw-tools" class="panel-body" hidden>
+    <section id="draw-tools" class="panel-body" hidden="">
       <div class="buttons">
         <button type="button" class="small" data-mode="text">文字</button>
         <button type="button" class="small" data-mode="arrow">箭頭</button>
@@ -136,29 +141,39 @@
         <p class="hint">拖曳檔案到這裡，或貼上剪貼簿的圖片。</p>
         <button type="button" id="pick-empty" class="primary">選擇圖片</button>
       </div>
-      <div id="frame" hidden>
-        <canvas id="preview" aria-label="圖片預覽"></canvas>
-        <canvas id="guide" tabindex="0" aria-label="編輯畫布"></canvas>
+      <div id="stage-content" hidden="">
+        <div id="frame">
+          <canvas id="preview" aria-label="圖片預覽"></canvas>
+          <canvas id="guide" tabindex="0" aria-label="編輯畫布"></canvas>
+        </div>
       </div>
     </div>
-    <div id="crop-bar" class="crop-bar" aria-label="裁切控制" hidden>
+    <div id="zoom-bar" class="zoom-bar" role="group" aria-label="編輯區縮放與平移" hidden="">
+      <button type="button" class="zoom-step" id="zoom-out" aria-label="縮小編輯畫面" title="縮小（Ctrl＋滾輪向下）">−</button>
+      <output id="zoom-value" aria-label="編輯畫面縮放比例">100%</output>
+      <button type="button" class="zoom-step" id="zoom-in" aria-label="放大編輯畫面" title="放大（Ctrl＋滾輪向上）">＋</button>
+      <button type="button" id="zoom-fit" aria-pressed="true">符合視窗</button>
+      <button type="button" id="zoom-actual" title="以原始像素比例顯示">100%</button>
+      <button type="button" id="pan-view" aria-pressed="false" title="開啟後，拖曳畫布即可平移">手形平移</button>
+    </div>
+    <div id="crop-bar" class="crop-bar" aria-label="裁切控制" hidden="">
       <p id="crop-info">在圖片上拖曳，圈出要保留的範圍。</p>
       <div class="buttons">
         <button type="button" id="cancel-crop">取消</button>
-        <button type="button" id="apply-crop" class="primary" disabled>套用裁切</button>
+        <button type="button" id="apply-crop" class="primary" disabled="">套用裁切</button>
       </div>
     </div>
     <div class="stage-info"><span id="stage-status" role="status">開啟底圖後，可插入其他圖片。</span><span id="dimensions"></span></div>
   </div>
   <aside class="layers-panel panel" aria-label="圖層">
-    <div class="panel-head"><h2>圖層</h2><button type="button" class="small" id="add-layer" disabled>插入圖片</button></div>
+    <div class="panel-head"><h2>圖層</h2><button type="button" class="small" id="add-layer" disabled="">插入圖片</button></div>
     <ol class="layers" id="layers"></ol>
     <div class="layer-actions">
-      <button type="button" class="small" id="layer-up" disabled>上移</button>
-      <button type="button" class="small" id="layer-down" disabled>下移</button>
-      <button type="button" class="small" id="layer-delete" disabled>刪除</button>
+      <button type="button" class="small" id="layer-up" disabled="">上移</button>
+      <button type="button" class="small" id="layer-down" disabled="">下移</button>
+      <button type="button" class="small" id="layer-delete" disabled="">刪除</button>
     </div>
-    <section class="panel-body" id="selection-fields" hidden>
+    <section class="panel-body" id="selection-fields" hidden="">
       <div class="control-group">
         <label class="field">角度（°）<input id="layer-angle" type="number" step="0.1" value="0"></label>
         <input id="layer-angle-slider" type="range" min="-180" max="180" step="0.1" value="0" aria-label="圖層角度">
@@ -167,17 +182,17 @@
           <button type="button" class="small" id="layer-rotate-right">右轉 90°</button>
         </div>
       </div>
-      <div id="image-fields" class="control-group" hidden>
+      <div id="image-fields" class="control-group" hidden="">
         <label class="field"><span class="range-label">不透明度 <output id="opacity-value">100%</output></span><input id="layer-opacity" type="range" min="0" max="100" value="100"></label>
       </div>
-      <div id="text-fields" class="control-group" hidden>
+      <div id="text-fields" class="control-group" hidden="">
         <label class="field">文字<textarea id="layer-text" rows="3"></textarea></label>
         <div class="pair">
           <label class="field">字級 px<input id="layer-size" type="number" min="6" max="1000"></label>
           <label class="field">顏色<input id="layer-color" type="color"></label>
         </div>
       </div>
-      <label id="effect-field" class="field" hidden><span id="effect-label">程度</span><input id="effect-value" type="range" min="2" max="100"></label>
+      <label id="effect-field" class="field" hidden=""><span id="effect-label">程度</span><input id="effect-value" type="range" min="2" max="100"></label>
       <p class="hint">拖曳圖層可移動，拖曳右下角可等比例縮放。</p>
     </section>
   </aside>
@@ -185,11 +200,11 @@
 <dialog id="export-dialog">
   <form class="dialog-form" id="export-form">
     <h2>下載圖片</h2>
-    <label class="field">檔名<input id="export-name" maxlength="100" required></label>
+    <label class="field">檔名<input id="export-name" maxlength="100" required=""></label>
     <label class="field">格式<select id="export-type"><option value="image/png">PNG</option><option value="image/jpeg">JPG</option><option value="image/webp">WebP</option></select></label>
-    <label class="field" id="quality-field" hidden><span class="range-label">品質 <output id="quality-value">92%</output></span><input id="export-quality" type="range" min="10" max="100" value="92"></label>
+    <label class="field" id="quality-field" hidden=""><span class="range-label">品質 <output id="quality-value">92%</output></span><input id="export-quality" type="range" min="10" max="100" value="92"></label>
     <p class="hint" id="export-dimensions"></p>
-    <p id="export-error" role="alert" hidden></p>
+    <p id="export-error" role="alert" hidden=""></p>
     <div class="dialog-footer"><button type="button" id="close-export">取消</button><button type="submit" id="download" class="primary">下載</button></div>
   </form>
 </dialog>
@@ -198,11 +213,16 @@
 (() => {
 "use strict";
 /*
+維護原則（供 LLM 後續修改）
+- 以 LLM 容易定位、理解、局部修改及驗證為優先。傳統人工閱讀與排版習慣不作為組織程式碼的依據。
+- 保持單檔 HTML，依功能集中狀態、資料契約與入口。共用操作走同一條更新路徑，跨區塊只透過明確的函式和資料欄位。
+
 維護入口
 - project 是可複製的資料，圖片原始像素集中在 assets，歷史紀錄只保存參照。
 - base 與 layer.matrix 使用 Canvas 2D 仿射矩陣。裁切和變形作用於完整構圖。
 - 圖層角度由 matrix 推導，旋轉以物件中心為基準。預覽、復原與另存只需要同一份矩陣資料。
 - renderer.paint 供預覽及匯出共用。guide 畫布只顯示選取框、裁切框及繪製中的標示。
+- viewport 管理顯示比例與捲動位置。pointerPoint 將螢幕座標換算為專案像素。圖層、裁切、匯出與復原以 project 像素為準。
 - looks 只覆寫色調控制。白平衡係數與銳利度獨立保存，效果只處理底圖像素。
 - layer.kind 決定影像、文字、標註或遮蔽的呈現。layers 由下往上排序，底圖獨立保存。
 - 另存 HTML 以啟動時的介面作外殼，將目前 project 與引用的原始圖片寫入 editor-project JSON，開啟時由 restoreEditor 還原。
@@ -529,6 +549,7 @@ let selected = null, mode = "select", panel = "edit", comparison = false;
 let cropRect = null, gesture = null, adjustDraft = null, layerDraft = null;
 let frameRequest = 0, exporting = false, savingEditor = false, restoringEditor = false;
 const stage = $("stage"), frame = $("frame"), preview = $("preview"), guide = $("guide");
+const viewport = createViewport(stage,frame,schedule);
 const renderer = createRenderer();
 const descriptions = {image:"圖片",text:"文字",rect:"框線",arrow:"箭頭",mosaic:"馬賽克",blur:"模糊"};
 const id = () => "layer-"+(++serial);
@@ -601,6 +622,7 @@ function activateProject(base,state = null,selection = null) {
   selected = project.layers.some(layer => layer.id===selection) ? selection : null;
   mode = "select";
   clearTransient();
+  viewport.reset();
   pruneAssets();
   update();
 }
@@ -720,7 +742,7 @@ function updateTools() {
   $("original").setAttribute("aria-pressed",String(comparison));
   $("original").textContent = comparison ? "返回編輯結果" : "查看原圖";
   updateCropControls();
-  guide.style.cursor = comparison ? "default" : mode==="select" ? "default" : mode==="text" ? "text" : "crosshair";
+  guide.style.setProperty("--guide-cursor",comparison || mode==="select" ? "default" : mode==="text" ? "text" : "crosshair");
 }
 function updateCropControls() {
   const active = !!project && mode==="crop" && !comparison;
@@ -738,7 +760,8 @@ function updateCropControls() {
 }
 function update() {
   $("empty").hidden = !!project;
-  frame.hidden = !project;
+  $("stage-content").hidden = !project;
+  $("zoom-bar").hidden = !project;
   if (project) {
     $("dimensions").textContent = project.w+" × "+project.h+" px";
     $("resize-w").value = project.w;
@@ -763,12 +786,91 @@ function pickLayer(layer) {
   syncSelection();
   schedule();
 }
-function fitFrame() {
-  if (!project) return;
-  const pad = 32;
-  const ratio = Math.min(1,Math.max(1,stage.clientWidth-pad)/project.w,Math.max(1,stage.clientHeight-pad)/project.h);
-  frame.style.width = Math.max(1,project.w*ratio)+"px";
-  frame.style.height = Math.max(1,project.h*ratio)+"px";
+function createViewport(stage,frame,onZoom) {
+  const content = $("stage-content"), panButton = $("pan-view");
+  const zoomOut = $("zoom-out"), zoomIn = $("zoom-in"), zoomFit = $("zoom-fit"), zoomValue = $("zoom-value");
+  const zoomStep = 1.25, maxZoom = 8;
+  const padding = getComputedStyle(content);
+  const insetX = parseFloat(padding.paddingLeft)+parseFloat(padding.paddingRight);
+  const insetY = parseFloat(padding.paddingTop)+parseFloat(padding.paddingBottom);
+  let manualZoom = null, panEnabled = false, drag = null;
+
+  function fit({w,h}) {
+    const view = stage.getBoundingClientRect();
+    return Math.min(1,Math.max(1,view.width-insetX)/w,Math.max(1,view.height-insetY)/h);
+  }
+  function limits(size) {
+    const fitted = fit(size);
+    return {fitted,minZoom:Math.min(.1,fitted/2)};
+  }
+  function layout(size) {
+    const {fitted,minZoom} = limits(size);
+    const zoom = manualZoom ?? fitted;
+    const width = Math.max(1,size.w*zoom), height = Math.max(1,size.h*zoom);
+    frame.style.width = width+"px";
+    frame.style.height = height+"px";
+    const percent = zoom*100;
+    const label = (percent<1 ? Number(percent.toPrecision(2)) : Math.round(percent*10)/10)+"%";
+    if (zoomValue.value!==label) zoomValue.value = label;
+    zoomOut.disabled = zoom<=minZoom;
+    zoomIn.disabled = zoom>=maxZoom;
+    zoomFit.setAttribute("aria-pressed",String(manualZoom===null));
+    return Math.max(width,height)>1536 ? 3072 : 1536;
+  }
+  function change(size,action,anchor) {
+    const {fitted,minZoom} = limits(size);
+    const zoom = manualZoom ?? fitted;
+    const next = action==="fit" ? null : action==="actual" ? 1 :
+      clamp(zoom*(action==="in" ? zoomStep : 1/zoomStep),minZoom,maxZoom);
+    if (next===manualZoom) return;
+    const view = stage.getBoundingClientRect(), before = frame.getBoundingClientRect();
+    const center = {x:view.left+stage.clientWidth/2,y:view.top+stage.clientHeight/2};
+    const target = anchor && anchor.x>=before.left && anchor.x<=before.right &&
+      anchor.y>=before.top && anchor.y<=before.bottom ? anchor : center;
+    const x = clamp((target.x-before.left)/before.width,0,1);
+    const y = clamp((target.y-before.top)/before.height,0,1);
+    manualZoom = next;
+    layout(size);
+    const after = frame.getBoundingClientRect();
+    stage.scrollLeft += after.left+x*after.width-target.x;
+    stage.scrollTop += after.top+y*after.height-target.y;
+    onZoom();
+  }
+  function showPan() {
+    if (panEnabled) stage.dataset.pan = drag ? "dragging" : "ready";
+    else delete stage.dataset.pan;
+    panButton.setAttribute("aria-pressed",String(panEnabled));
+  }
+  function setPan(enabled) {
+    const pointer = drag?.pointer;
+    drag = null;
+    panEnabled = enabled;
+    if (pointer!==undefined && stage.hasPointerCapture(pointer)) stage.releasePointerCapture(pointer);
+    showPan();
+  }
+  function reset() {
+    manualZoom = null;
+    setPan(false);
+    stage.scrollTo(0,0);
+  }
+  content.addEventListener("pointerdown",event => {
+    if (!panEnabled || drag || event.button!==0) return;
+    drag = {pointer:event.pointerId,x:event.clientX,y:event.clientY,left:stage.scrollLeft,top:stage.scrollTop};
+    stage.setPointerCapture(event.pointerId);
+    showPan();
+    event.preventDefault();
+  });
+  stage.addEventListener("pointermove",event => {
+    if (!drag || drag.pointer!==event.pointerId) return;
+    stage.scrollLeft = drag.left+drag.x-event.clientX;
+    stage.scrollTop = drag.top+drag.y-event.clientY;
+  });
+  stage.addEventListener("lostpointercapture",event => {
+    if (!drag || drag.pointer!==event.pointerId) return;
+    drag = null;
+    showPan();
+  });
+  return {layout,change,reset,setPan,get panning() { return panEnabled; }};
 }
 function originalInFrame(state) {
   const source = originalProject;
@@ -818,13 +920,13 @@ function drawGuide(state) {
 function render() {
   frameRequest = 0;
   if (!project) return;
-  fitFrame();
+  const maxEdge = viewport.layout(project);
   let state = comparison ? originalInFrame(project) : project;
   if (adjustDraft && !comparison) state = {...state,adjust:adjustDraft};
   if (layerDraft && !comparison) state = stateWithLayer(state,layerDraft);
   if (gesture?.drawing && !comparison) state = {...state,layers:[...state.layers,gesture.drawing]};
   try {
-    renderer.paint(preview,state,{maxEdge:1536,cache:true});
+    renderer.paint(preview,state,{maxEdge,cache:true});
     drawGuide(state);
   } catch (error) {
     say(error.message || "無法更新預覽。");
@@ -852,7 +954,7 @@ function makeDrawing(action,a,b) {
     points:[a.x-box.x,a.y-box.y,b.x-box.x,b.y-box.y]};
 }
 function startPointer(event) {
-  if (!project || comparison || (event.pointerType==="mouse" && event.button!==0) || gesture) return;
+  if (!project || comparison || viewport.panning || (event.pointerType==="mouse" && event.button!==0) || gesture) return;
   const point = pointerPoint(event);
   if (mode==="text") {
     const layer = measureTextLayer({id:id(),kind:"text",text:"文字",size:clamp(Math.round(project.w*.045),16,250),
@@ -1266,6 +1368,15 @@ $("export-dialog").addEventListener("cancel",event => { if (exporting) event.pre
 $("export-form").addEventListener("submit",download);
 $("export-type").addEventListener("change",event => { $("quality-field").hidden = event.target.value==="image/png"; });
 $("export-quality").addEventListener("input",event => { $("quality-value").textContent = event.target.value+"%"; });
+for (const action of ["out","in","fit","actual"]) {
+  $("zoom-"+action).addEventListener("click",() => { if (project && !gesture) viewport.change(project,action); });
+}
+$("pan-view").addEventListener("click",() => { if (project && !gesture) viewport.setPan(!viewport.panning); });
+stage.addEventListener("wheel",event => {
+  if (!project || !(event.ctrlKey || event.metaKey) || !event.deltaY) return;
+  event.preventDefault();
+  if (!gesture) viewport.change(project,event.deltaY<0 ? "in" : "out",{x:event.clientX,y:event.clientY});
+},{passive:false});
 guide.addEventListener("pointerdown",startPointer);
 window.addEventListener("pointermove",movePointer);
 window.addEventListener("pointerup",endPointer);
@@ -1301,6 +1412,4 @@ setPanel("edit");
 update();
 restoreEditor();
 })();
-</script>
-</body>
-</html>
+</script></body></html>
