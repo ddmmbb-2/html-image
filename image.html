@@ -21,7 +21,9 @@
   .control-group{display:grid;gap:8px}.control-group+.control-group{padding-top:10px;border-top:1px solid var(--line)}
   .field{display:grid;gap:4px;font-size:.85rem}.field select,.field input:not([type="checkbox"]),.field textarea{width:100%;min-width:0}.field small,.hint,.stage-info{color:var(--muted);font-size:.8rem;line-height:1.5}
   .pair{display:grid;grid-template-columns:1fr 1fr;gap:7px}.range-label,.inline-label{display:flex;align-items:center;justify-content:space-between;gap:6px;font-size:.84rem}.inline-label{justify-content:flex-start}
-  input[type="range"],input[type="checkbox"]{accent-color:var(--accent)}input[type="color"]{padding:3px!important}
+  input[type="range"],input[type="checkbox"],progress{accent-color:var(--accent)}input[type="color"]{padding:3px!important}
+  progress{width:100%;height:8px}
+  #ocr-result{resize:vertical;min-height:140px;line-height:1.5;font-size:.84rem}
   button.small{font-size:.79rem;padding:5px 7px}.buttons button{flex:1 0 auto}
   #stage{position:relative;min-height:350px;height:min(70vh,760px);overflow:auto;overflow-anchor:none;background:#e9e0d4}
   #stage-content{display:flex;align-items:center;justify-content:center;width:max-content;min-width:100%;min-height:100%;padding:16px}
@@ -69,6 +71,7 @@
       <button type="button" data-panel="edit" aria-controls="edit-tools" aria-pressed="true">尺寸</button>
       <button type="button" data-panel="adjust" aria-controls="adjust-tools" aria-pressed="false">調色</button>
       <button type="button" data-panel="draw" aria-controls="draw-tools" aria-pressed="false">標註</button>
+      <button type="button" data-panel="ocr" aria-controls="ocr-tools" aria-pressed="false">OCR</button>
     </div>
     <section id="edit-tools" class="panel-body">
       <div class="control-group">
@@ -132,6 +135,28 @@
       <label class="field">標註顏色<input id="mark-color" type="color" value="#dc4c32"></label>
       <label class="field">線條粗細 px<input id="mark-line" type="number" min="1" max="300" value="6"></label>
       <p class="hint">文字點一下放置。框線、箭頭和遮蔽工具以拖曳設定範圍。</p>
+    </section>
+    <section id="ocr-tools" class="panel-body" hidden="">
+      <label class="field">辨識語系
+        <select id="ocr-lang">
+          <option value="chi_tra+eng">繁體中文 + 英文</option>
+          <option value="eng">純英文</option>
+          <option value="chi_sim+eng">簡體中文 + 英文</option>
+          <option value="jpn+eng">日文 + 英文</option>
+          <option value="kor+eng">韓文 + 英文</option>
+        </select>
+      </label>
+      <button type="button" id="ocr-run" class="primary" disabled="">下載模型並辨識</button>
+      <progress id="ocr-progress" max="1" value="0" hidden=""></progress>
+      <p class="hint" id="ocr-status">按下按鈕才會下載輕量模型（約 2–6 MB），下載後瀏覽器會自動快取。</p>
+      <label class="field">辨識結果
+        <textarea id="ocr-result" rows="8" placeholder="辨識出的文字會顯示在這裡…"></textarea>
+      </label>
+      <div class="buttons">
+        <button type="button" class="small" id="ocr-copy" disabled="">複製文字</button>
+        <button type="button" class="small" id="ocr-to-layer" disabled="">插入文字圖層</button>
+        <button type="button" class="small" id="ocr-clear" disabled="">清除</button>
+      </div>
     </section>
   </aside>
   <div class="main-panel panel">
@@ -225,6 +250,7 @@
 - viewport 管理顯示比例與捲動位置。pointerPoint 將螢幕座標換算為專案像素。圖層、裁切、匯出與復原以 project 像素為準。
 - looks 只覆寫色調控制。白平衡係數與銳利度獨立保存，效果只處理底圖像素。
 - layer.kind 決定影像、文字、標註或遮蔽的呈現。layers 由下往上排序，底圖獨立保存。
+- OCR 採按需動態載入 Tesseract.js v5 與 tessdata_fast 輕量模型，不內嵌於 HTML，也不寫入另存的專案資料。
 - 另存 HTML 以啟動時的介面作外殼，將目前 project 與引用的原始圖片寫入 editor-project JSON，開啟時由 restoreEditor 還原。
 */
 const $ = id => document.getElementById(id);
@@ -548,6 +574,8 @@ let project = null, originalProject = null, past = [], future = [];
 let selected = null, mode = "select", panel = "edit", comparison = false;
 let cropRect = null, gesture = null, adjustDraft = null, layerDraft = null;
 let frameRequest = 0, exporting = false, savingEditor = false, restoringEditor = false;
+let ocrRunning = false, ocrWorker = null, ocrWorkerLang = "", tesseractPromise = null;
+const ocrLoadedLangs = new Set();
 const stage = $("stage"), frame = $("frame"), preview = $("preview"), guide = $("guide");
 const viewport = createViewport(stage,frame,schedule);
 const renderer = createRenderer();
@@ -723,6 +751,13 @@ function updateTools() {
   $("save-html").disabled = savingEditor || restoringEditor;
   $("undo").disabled = !past.length;
   $("redo").disabled = !future.length;
+  const ocrLang = $("ocr-lang").value, hasOcrText = !!$("ocr-result").value.trim();
+  $("ocr-lang").disabled = ocrRunning;
+  $("ocr-run").disabled = !project || ocrRunning;
+  $("ocr-run").textContent = ocrRunning ? "辨識中…" : ocrLoadedLangs.has(ocrLang) ? "開始辨識" : "下載模型並辨識";
+  $("ocr-copy").disabled = !hasOcrText;
+  $("ocr-clear").disabled = !hasOcrText;
+  $("ocr-to-layer").disabled = !project || !hasOcrText;
   for (const button of all("[data-mode]")) {
     const value = button.dataset.mode;
     button.disabled = !project && value!=="select";
@@ -1091,6 +1126,101 @@ function bindAngle(name) {
   });
   field.addEventListener("change",() => setSelectedAngle(field.value));
 }
+function loadTesseract() {
+  if (window.Tesseract) return Promise.resolve(window.Tesseract);
+  if (!tesseractPromise) {
+    tesseractPromise = new Promise((resolve,reject) => {
+      const script = document.createElement("script");
+      script.src = "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js";
+      script.onload = () => window.Tesseract ? resolve(window.Tesseract) : reject(new Error("OCR 引擎載入失敗。"));
+      script.onerror = () => { tesseractPromise = null; reject(new Error("無法連線下載 OCR 引擎，請確認網路狀態。")); };
+      document.head.append(script);
+    });
+  }
+  return tesseractPromise;
+}
+function cleanOcrText(text) {
+  return text
+    .replace(/([\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af])[ \t]+(?=[\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af])/g,"$1")
+    .replace(/\n{3,}/g,"\n\n")
+    .trim();
+}
+function ocrProgressLabel(status) {
+  if (status.includes("loading tesseract core")) return "正在下載 OCR 核心…";
+  if (status.includes("loading language traineddata")) return "正在下載語系模型…";
+  if (status.includes("initializing")) return "正在初始化辨識引擎…";
+  if (status.includes("recognizing text")) return "正在辨識圖片文字…";
+  return "處理中…";
+}
+async function runOcr() {
+  if (!project || ocrRunning) return;
+  const lang = $("ocr-lang").value;
+  const statusEl = $("ocr-status"), progressEl = $("ocr-progress");
+  ocrRunning = true;
+  progressEl.hidden = false;
+  progressEl.value = 0;
+  statusEl.textContent = "正在準備 OCR 引擎…";
+  updateTools();
+  try {
+    const Tesseract = await loadTesseract();
+    if (ocrWorker && ocrWorkerLang!==lang) {
+      await ocrWorker.terminate();
+      ocrWorker = null;
+      ocrWorkerLang = "";
+    }
+    const logger = message => {
+      if (message.status) statusEl.textContent = ocrProgressLabel(message.status);
+      if (typeof message.progress==="number") progressEl.value = message.progress;
+    };
+    if (!ocrWorker) {
+      ocrWorker = await Tesseract.createWorker(lang,1,{
+        langPath:"https://tessdata.projectnaptha.com/4.0.0_fast",
+        logger,
+      });
+      ocrWorkerLang = lang;
+      ocrLoadedLangs.add(lang);
+    }
+    const canvas = document.createElement("canvas");
+    renderer.paint(canvas,project,{maxEdge:2400,jpeg:true});
+    const {data} = await ocrWorker.recognize(canvas);
+    const text = cleanOcrText(data.text || "");
+    $("ocr-result").value = text;
+    statusEl.textContent = text ? "辨識完成（共 "+text.length+" 字）。" : "未偵測到可辨識的文字。";
+    say(text ? "文字辨識完成。" : "圖片中沒有辨識到文字。");
+  } catch (error) {
+    statusEl.textContent = error.message || "OCR 辨識失敗。";
+    say("OCR 辨識失敗。");
+  } finally {
+    ocrRunning = false;
+    progressEl.hidden = true;
+    updateTools();
+  }
+}
+async function copyOcrText() {
+  const text = $("ocr-result").value;
+  if (!text.trim()) return;
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    $("ocr-result").select();
+    document.execCommand("copy");
+  }
+  $("ocr-status").textContent = "已複製到剪貼簿。";
+  say("已複製辨識文字。");
+}
+function ocrToLayer() {
+  const text = $("ocr-result").value.trim();
+  if (!project || !text) return;
+  const size = clamp(Math.round(project.w*.035),16,120);
+  const layer = measureTextLayer({
+    id:id(),kind:"text",text,size,
+    color:$("mark-color").value,
+    matrix:translate(project.w*.05,project.h*.05),
+  });
+  mode = "select";
+  commit({...project,layers:[...project.layers,layer]},layer.id);
+  say("已將辨識結果插入為文字圖層。");
+}
 const formats = { "image/png":"png","image/jpeg":"jpg","image/webp":"webp" };
 function downloadFile(blob,filename) {
   const url = URL.createObjectURL(blob), link = document.createElement("a");
@@ -1359,6 +1489,16 @@ for (const [name,delta] of [["layer-rotate-left",-90],["layer-rotate-right",90]]
 $("layer-text").addEventListener("change",event => updateSelected({text:event.target.value}));
 $("layer-size").addEventListener("change",event => updateSelected({size:clamp(Number(event.target.value)||16,6,1000)}));
 $("layer-color").addEventListener("change",event => updateSelected({color:event.target.value}));
+$("ocr-run").addEventListener("click",runOcr);
+$("ocr-lang").addEventListener("change",updateTools);
+$("ocr-result").addEventListener("input",updateTools);
+$("ocr-copy").addEventListener("click",copyOcrText);
+$("ocr-to-layer").addEventListener("click",ocrToLayer);
+$("ocr-clear").addEventListener("click",() => {
+  $("ocr-result").value = "";
+  $("ocr-status").textContent = "已清除結果。";
+  updateTools();
+});
 $("undo").addEventListener("click",() => history(false));
 $("redo").addEventListener("click",() => history(true));
 $("save-html").addEventListener("click",saveEditor);
